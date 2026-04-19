@@ -1,0 +1,6 @@
+# Build artifacts
+target/
+**/target/
+
+# Generated files
+context_bundle.md
