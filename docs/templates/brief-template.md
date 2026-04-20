@@ -1,49 +1,49 @@
-## 🤖 Инструкция для агента: [Название модуля] | smith-windows
+## 🤖 Instruction for Agent: [Module Name] | smith-windows
 
-**📁 Источники (читать в порядке приоритета):**
-1. `docs/design/[module]/specification.md` — вход/выход, границы, критерии
-2. `docs/design/[module]/contract.md` — требования, гарантии, запреты, сбои
-3. `docs/design/[module]/test-plan.md` — сценарии тестов, обязательные проверки
-4. `docs/adr/XXX-[module].md` — архитектурные решения
-5. `AGENTS.md`, `ARCHITECTURE.md` — правила кода, стек, процесс
+**📁 Sources (read in priority order):**
+1. `docs/design/[module]/specification.md` — input/output, boundaries, criteria
+2. `docs/design/[module]/contract.md` — requirements, guarantees, prohibitions, failures
+3. `docs/design/[module]/test-plan.md` — test scenarios, mandatory checks
+4. `docs/adr/XXX-[module].md` — architectural decisions
+5. `AGENTS.md`, `ARCHITECTURE.md` — code rules, stack, process
 
-**🔗 Перекрёстные ссылки:**
-- `docs/design/[module]/brief.md` — описание зависимости (если есть)
-- `docs/adr/XXX-[module].md` — кроссплатформенная архитектура, spawn_blocking (если применимо)
+**🔗 Cross-references:**
+- `docs/design/[module]/brief.md` — dependency description (if any)
+- `docs/adr/XXX-[module].md` — cross-platform architecture, spawn_blocking (if applicable)
 
-**🎯 Задача:**
-[Описать задачу: сформировать текстовый план реализации, сгенерировать код, или другую специфическую задачу]
+**🎯 Task:**
+[Describe task: form implementation plan, generate code, or another specific task]
 
-**📋 Формат вывода (строго):**
+**📋 Output format (strict):**
 ```
-[Файл] → [Сущности] → [cfg-флаги] → [Тесты] → [Валидация]
+[File] → [Entities] → [cfg-flags] → [Tests] → [Validation]
 ```
 
-**✅ Обязательные элементы в плане:**
-- [Описать обязательные элементы, например]:
-  - `validate_selector()` вынесена в `src/core/[module].rs` (валидация ДО вызова бэкенда)
-  - Единый `[Module]Error` (`thiserror`) с точными именами из контракта
-  - Сигнатура с явным `[Module]Config { timeout: Duration, cancellation: CancellationToken }`
-  - Изоляция COM-вызовов через `tokio::task::spawn_blocking`
-  - Тесты: `#[cfg(test)] mod tests` внутри `src/core/[module].rs` + `tests/integration/`
-  - `Mock[Module]Backend` с `Arc<Mutex<MockState>>` для проверки идемпотентности при `Err`
+**✅ Mandatory plan elements:**
+- [Describe mandatory elements, e.g.]:
+  - `validate_selector()` moved to `src/core/[module].rs` (validation BEFORE backend call)
+  - Unified `[Module]Error` (`thiserror`) with exact names from contract
+  - Signature with explicit `[Module]Config { timeout: Duration, cancellation: CancellationToken }`
+  - COM calls isolated via `tokio::task::spawn_blocking`
+  - Tests: `#[cfg(test)] mod tests` inside `src/core/[module].rs` + `tests/integration/`
+  - `Mock[Module]Backend` with `Arc<Mutex<MockState>>` for idempotency check on `Err`
 
-**🚫 Запреты:**
-- [Описать запреты, например]:
-  - Не генерировать код на этапе плана
-- [Описать запреты, например]:
-  - Не использовать `unwrap()`/`panic!`/`expect()` даже в примерах
-- [Описать запреты, например]:
-  - Не создавать `src/core/[module]/tests.rs` (объединить в `mod tests` или вынести в `tests/`)
-- [Описать запреты, например]:
-  - Не менять контракт без явного согласования
+**🚫 Prohibitions:**
+- [Describe prohibitions, e.g.]:
+  - Don't generate code at plan stage
+- [Describe prohibitions, e.g.]:
+  - Don't use `unwrap()`/`panic!`/`expect()` even in examples
+- [Describe prohibitions, e.g.]:
+  - Don't create `src/core/[module]/tests.rs` (combine in `mod tests` or move to `tests/`)
+- [Describe prohibitions, e.g.]:
+  - Don't change contract without explicit agreement
 
-**🔄 Процесс:**
-1. [Описание первого шага процесса]
-2. [Описание второго шага процесса]
-3. [Описание третьего шага процесса, если применимо]
+**🔄 Process:**
+1. [Describe first step]
+2. [Describe second step]
+3. [Describe third step, if applicable]
 
-**📝 Метаданные:**
-- Автор: [Роль агента, например: Архитектор smith-core]
-- Дата: [Дата создания]
-- Статус: `[draft]` / `[approved]` / `[approved_with_corrections]` / `[deprecated]`
+**📝 Metadata:**
+- Author: [Agent role, e.g.: smith-core Architect]
+- Date: [Creation date]
+- Status: `[draft]` / `[approved]` / `[approved_with_corrections]` / `[deprecated]`

@@ -1,16 +1,16 @@
-## 🧪 План тестов: [Название] | smith-windows
+## 🧪 Test Plan: [Name] | smith-windows
 
-**✅ Позитивные:** [вход] → [ожидаемый выход]
-**🔄 Граничные:** `0` / пусто / максимум → [ожидаемое]
-**❌ Негативные:** Некорректный вход → [ожидаемая ошибка]
+**✅ Positive:** [input] → [expected output]
+**🔄 Boundary:** `0` / empty / max → [expected]
+**❌ Negative:** Invalid input → [expected error]
 
-**🔍 Обязательные проверки:**
-- [ ] При `Err` состояние не изменилось
-- [ ] Нет дублей событий/логов
-- [ ] Нет `unwrap()`, `panic!`, блокировок в async
+**🔍 Mandatory checks:**
+- [ ] On `Err`, state unchanged
+- [ ] No duplicate events/logs
+- [ ] No `unwrap()`, `panic!`, or blocking in async
 
 ---
-## 🗓️ Для `/plan`: тесты как шаги
-- [ ] Создать файл тестов
-- [ ] Реализовать тесты: базовый, граничный, негативный
-- [ ] Запустить `cargo test -- --nocapture`
+## 🗓️ For `/plan`: tests as steps
+- [ ] Create test file
+- [ ] Implement tests: base, boundary, negative
+- [ ] Run `cargo test -- --nocapture`

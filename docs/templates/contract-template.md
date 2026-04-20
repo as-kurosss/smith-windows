@@ -1,12 +1,12 @@
-## 📜 Контракт: [Функция/Модуль] | smith-windows
+## 📜 Contract: [Function/Module] | smith-windows
 
-**🔹 Требования (ДО вызова):** [Условия]
-**🔸 Гарантии (ПОСЛЕ):** Если `Ok`: [что изменится]; Если `Err`: [что НЕ изменилось]
-**🚫 Запреты:** [Чего модуль НЕ делает]
-**⚡ Сбои:** [Реакция на таймаут, отмену, некорректные данные]
+**🔹 Requirements (BEFORE call):** [Conditions]
+**🔸 Guarantees (AFTER):** If `Ok`: [what changes]; If `Err`: [what DOES NOT change]
+**🚫 Prohibitions:** [What the module DOES NOT do]
+**⚡ Failures:** [Reaction to timeout, cancellation, invalid data]
 
 ---
-## 🗓️ Для `/plan`: ключевые точки валидации
-- [ ] Валидация входа происходит [где]
-- [ ] События/логи отправляются [когда]
-- [ ] Ошибки обрабатываются через [тип], не через `panic!`
+## 🗓️ For `/plan`: key validation checkpoints
+- [ ] Input validation happens [where]
+- [ ] Events/logs are sent [when]
+- [ ] Errors handled via [type], not `panic!`

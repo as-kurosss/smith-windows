@@ -14,6 +14,9 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 async-trait = "0.1"
 uiautomation = "0.24.4"
+trybuild = "1.0.116"
+regex = "1.12.3"
+clipboard = "0.5"
 
 [target.'cfg(windows)'.dependencies]
 
@@ -24,3 +27,11 @@ path = "tools/bundle_context.rs"
 [lib]
 name = "smith_windows"
 path = "src/lib.rs"
+
+[[example]]
+name = "click_example"
+path = "examples/click_example.rs"
+
+[[example]]
+name = "notepad_click"
+path = "examples/notepad_click.rs"

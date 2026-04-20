@@ -1,27 +1,27 @@
-## 📐 Спека: [Название модуля/функции] | smith-windows
+## 📐 Specification: [Module/Function Name] | smith-windows
 
-**🎯 Цель:** [1 предложение: зачем нужен, какую проблему решает]
+**🎯 Purpose:** [1 sentence: why it's needed, what problem it solves]
 
-**📥 Вход:**
-- `параметр` (тип) | ограничение | пример
+**📥 Input:**
+- `parameter` (type) | constraint | example
 
-**📤 Выход:**
-- `результат` (тип) | побочный эффект | пример
-- При ошибке: тип ошибки | что НЕ меняется
+**📤 Output:**
+- `result` (type) | side effect | example
+- On error: error type | what DOES NOT change
 
-**⚠️ Границы:**
-- Что если вход пустой / `0` / `NaN` / максимум?
-- Что если вызван в недопустимом состоянии?
+**⚠️ Boundaries:**
+- What if input is empty / `0` / `NaN` / max?
+- What if called in an invalid state?
 
-**✅ Критерии успеха:**
-- [ ] Все сценарии из «Границ» обработаны без паник
-- [ ] Состояние НЕ ломается при ошибке
-- [ ] Лог/метрика фиксирует результат или причину сбоя
+**✅ Success criteria:**
+- [ ] All scenarios from "Boundaries" handled without panics
+- [ ] State doesn't break on error
+- [ ] Log/metric records result or failure cause
 
 ---
-## 🗓️ План реализации (для `/plan`)
-- [ ] Создать/обновить файл: `src/[модуль]/[файл].rs`
-- [ ] Реализовать типы и функции с контрактами
-- [ ] Добавить тесты: позитивный, граничный, негативный
-- [ ] Обновить документацию: `ARCHITECTURE.md` или `ADR/XXX.md`
-- [ ] Проверки: `cargo test`, `cargo clippy -- -D warnings`
+## 🗓️ Implementation plan (for `/plan`)
+- [ ] Create/update file: `src/[module]/[file].rs`
+- [ ] Implement types and functions with contracts
+- [ ] Add tests: positive, boundary, negative
+- [ ] Update docs: `ARCHITECTURE.md` or `ADR/XXX.md`
+- [ ] Checks: `cargo test`, `cargo clippy -- -D warnings`
