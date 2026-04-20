@@ -1,9 +1,9 @@
 //! Windows backend for click operations using UI Automation
 
-use tracing::{info, error};
+use tracing::{error, info};
 
-use crate::core::click::{ClickConfig, ClickError};
 use crate::core::click::validate_click_config;
+use crate::core::click::{ClickConfig, ClickError};
 
 /// Windows click backend implementation
 pub struct ClickBackendWindows;
@@ -32,7 +32,7 @@ impl ClickBackendWindows {
                 return Err(ClickError::ElementNotFound);
             }
         };
-        
+
         // Check if element is enabled
         let enabled_result = element.is_enabled();
         let is_enabled = match enabled_result {
@@ -42,7 +42,7 @@ impl ClickBackendWindows {
                 return Err(ClickError::ComError(e.to_string()));
             }
         };
-        
+
         if !is_enabled {
             error!("Click failed: element is disabled");
             return Err(ClickError::ElementNotEnabled);
@@ -57,7 +57,7 @@ impl ClickBackendWindows {
                 return Err(ClickError::ComError(e.to_string()));
             }
         };
-        
+
         if is_offscreen {
             error!("Click failed: element is offscreen");
             return Err(ClickError::ElementOffscreen);
@@ -65,7 +65,7 @@ impl ClickBackendWindows {
 
         // Perform the click
         let result = element.click();
-        
+
         match result {
             Ok(()) => {
                 info!("Click operation completed successfully");
@@ -86,22 +86,20 @@ pub async fn click_with_config(
 ) -> Result<(), ClickError> {
     // Validate config BEFORE any backend calls
     validate_click_config(config)?;
-    
+
     info!(
         "Starting click operation with timeout: {:?}",
         config.timeout
     );
 
     let backend = ClickBackendWindows::new();
-    
+
     // Wrap with timeout and cancellation
-    let click_future = async move {
-        backend.click(element).await
-    };
+    let click_future = async move { backend.click(element).await };
 
     // Wrap the future with timeout
     let result = tokio::time::timeout(config.timeout, click_future).await;
-    
+
     match result {
         Ok(click_result) => {
             // Check for cancellation

@@ -11,7 +11,9 @@
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 
-use smith_windows::core::click::{ClickConfig, ClickError, validate_click_config, MockClickBackend};
+use smith_windows::core::click::{
+    validate_click_config, ClickConfig, ClickError, MockClickBackend,
+};
 use smith_windows::runtime::backends::windows::click::ClickBackendWindows;
 
 #[tokio::main]
@@ -62,7 +64,9 @@ async fn example_configuration() -> Result<(), Box<dyn std::error::Error>> {
 
     match validate_click_config(&config_invalid) {
         Ok(()) => println!("✗ Zero timeout should be rejected"),
-        Err(ClickError::InvalidConfig(msg)) => println!("✓ Zero timeout correctly rejected: {}", msg),
+        Err(ClickError::InvalidConfig(msg)) => {
+            println!("✓ Zero timeout correctly rejected: {}", msg)
+        }
         Err(e) => println!("✗ Unexpected error: {}", e),
     }
 
@@ -148,22 +152,26 @@ async fn example_with_real_click() -> Result<(), Box<dyn std::error::Error>> {
     })?;
 
     println!("Searching for Calculator window...");
-    let calculator = ui_automation.create_matcher()
+    let calculator = ui_automation
+        .create_matcher()
         .from(root_element.clone())
         .control_type(uiautomation::types::ControlType::Window)
         .timeout(10000)
-        .find_first().map_err(|e| {
+        .find_first()
+        .map_err(|e| {
             println!("Failed to find Calculator: {}", e);
             println!("Please open Calculator manually and try again");
             e
         })?;
 
     println!("Searching for buttons in Calculator...");
-    let buttons = ui_automation.create_matcher()
+    let buttons = ui_automation
+        .create_matcher()
         .from(calculator.clone())
         .control_type(uiautomation::types::ControlType::Button)
         .timeout(5000)
-        .find_all().map_err(|e| {
+        .find_all()
+        .map_err(|e| {
             println!("Failed to find buttons: {}", e);
             e
         })?;

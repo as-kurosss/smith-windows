@@ -11,7 +11,9 @@
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 
-use smith_windows::core::click::{ClickConfig, ClickError, validate_click_config, MockClickBackend};
+use smith_windows::core::click::{
+    validate_click_config, ClickConfig, ClickError, MockClickBackend,
+};
 use smith_windows::runtime::backends::windows::click::ClickBackendWindows;
 
 #[tokio::main]
@@ -61,7 +63,9 @@ async fn example_configuration() -> Result<(), Box<dyn std::error::Error>> {
 
     match validate_click_config(&config_invalid) {
         Ok(()) => println!("✗ Zero timeout should be rejected"),
-        Err(ClickError::InvalidConfig(msg)) => println!("✓ Zero timeout correctly rejected: {}", msg),
+        Err(ClickError::InvalidConfig(msg)) => {
+            println!("✓ Zero timeout correctly rejected: {}", msg)
+        }
         Err(e) => println!("✗ Unexpected error: {}", e),
     }
 
@@ -151,7 +155,8 @@ async fn example_notepad_click() -> Result<(), Box<dyn std::error::Error>> {
     // Search for Notepad window
     println!("\nStep 2: Finding Notepad window...");
     let notepad = loop {
-        match ui_automation.create_matcher()
+        match ui_automation
+            .create_matcher()
             .from(root_element.clone())
             .control_type(uiautomation::types::ControlType::Window)
             .timeout(2000)
@@ -169,19 +174,21 @@ async fn example_notepad_click() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Search attempt failed: {}", e);
             }
         }
-        
+
         tokio::time::sleep(Duration::from_secs(1)).await;
     };
 
     // Search for menu items - look for the menu bar first
     println!("\nStep 3: Finding menu items in Notepad...");
-    
+
     // Try to find menu bar or menu items
-    let menu_items = ui_automation.create_matcher()
+    let menu_items = ui_automation
+        .create_matcher()
         .from(notepad.clone())
         .control_type(uiautomation::types::ControlType::MenuItem)
         .timeout(5000)
-        .find_all().map_err(|e| {
+        .find_all()
+        .map_err(|e| {
             println!("Failed to find menu items: {}", e);
             e
         })?;
@@ -190,45 +197,56 @@ async fn example_notepad_click() -> Result<(), Box<dyn std::error::Error>> {
 
     if menu_items.is_empty() {
         println!("No menu items found. Trying to find menu bar...");
-        
+
         // Try to find menu bar
-        let menu_bar = ui_automation.create_matcher()
+        let menu_bar = ui_automation
+            .create_matcher()
             .from(notepad.clone())
             .control_type(uiautomation::types::ControlType::MenuBar)
             .timeout(5000)
-            .find_first().map_err(|e| {
+            .find_first()
+            .map_err(|e| {
                 println!("Failed to find menu bar: {}", e);
                 e
             })?;
 
         println!("✓ Found menu bar");
-        
+
         // Now find menu items in the menu bar using matcher
-        let items = ui_automation.create_matcher()
+        let items = ui_automation
+            .create_matcher()
             .from(menu_bar)
             .control_type(uiautomation::types::ControlType::MenuItem)
             .timeout(3000)
-            .find_all().map_err(|e| {
+            .find_all()
+            .map_err(|e| {
                 println!("Failed to find menu items in menu bar: {}", e);
                 e
             })?;
-        
+
         println!("Found {} menu items in menu bar", items.len());
-        
+
         if items.is_empty() {
             println!("No menu items found in menu bar");
             return Err("No menu items found".into());
         }
 
         // Find "File" menu
-        let file_menu = items.iter()
+        let file_menu = items
+            .iter()
             .find(|item| {
-                item.get_name().ok().map(|n| n.contains("Файл") || n.contains("File")).unwrap_or(false)
+                item.get_name()
+                    .ok()
+                    .map(|n| n.contains("Файл") || n.contains("File"))
+                    .unwrap_or(false)
             })
             .cloned()
             .ok_or("File menu not found")?;
 
-        println!("✓ Found 'File' menu item: '{}'", file_menu.get_name().unwrap_or_default());
+        println!(
+            "✓ Found 'File' menu item: '{}'",
+            file_menu.get_name().unwrap_or_default()
+        );
 
         // Click the File menu
         println!("Clicking 'File' menu...");
@@ -246,16 +264,23 @@ async fn example_notepad_click() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         // Menu items found directly
         println!("Menu items found directly");
-        
+
         // Find "File" menu - menu_items is Vec<UIElement>
-        let file_menu = menu_items.iter()
+        let file_menu = menu_items
+            .iter()
             .find(|item| {
-                item.get_name().ok().map(|n| n.contains("Файл") || n.contains("File")).unwrap_or(false)
+                item.get_name()
+                    .ok()
+                    .map(|n| n.contains("Файл") || n.contains("File"))
+                    .unwrap_or(false)
             })
-            .cloned()  // Clone UIElement since it's Clone
+            .cloned() // Clone UIElement since it's Clone
             .ok_or("File menu not found")?;
 
-        println!("✓ Found 'File' menu item: '{}'", file_menu.get_name().unwrap_or_default());
+        println!(
+            "✓ Found 'File' menu item: '{}'",
+            file_menu.get_name().unwrap_or_default()
+        );
 
         // Click the File menu
         println!("Clicking 'File' menu...");
@@ -280,7 +305,7 @@ async fn example_notepad_click() -> Result<(), Box<dyn std::error::Error>> {
     // Send Esc to close the menu, then Alt+F4 to close Notepad
     println!("Sending Escape to close menu...");
     // This would require keyboard automation - for now just exit
-    
+
     println!("Example completed successfully!");
     Ok(())
 }

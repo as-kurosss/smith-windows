@@ -55,9 +55,12 @@ smith-windows/
 ├── tools/                 # Вспомогательные инструменты разработки
 │   └── bundle_context.rs  # Сборщик контекста проекта (для ИИ-агентов)
 ├── .qwen/agents/          # Конфигурация ИИ-агентов
-│   ├── smith-architect.md
-│   ├── smith-coder.md
-│   └── smith-planner.md
+│   ├── smith-architect.md      # Архитектор спецификаций и документации
+│   ├── smith-planner.md        # Планировщик реализации
+│   ├── smith-coder.md          # Rust-инженер (TDD + документация)
+│   ├── smith-crate-researcher.md # Исследователь crate-зависимостей
+│   ├── smith-debugger.md       # Автономная отладка
+│   └── smith-compliance.md     # Проверка архитектурной compliance
 ├── Cargo.toml
 ├── AGENTS.md              # Правила для ИИ-агентов
 ├── ARCHITECTURE.md        # Архитектурная спецификация
@@ -71,21 +74,79 @@ smith-windows/
 ```
 1. Architect → specification.md + contract.md + test-plan.md
    (docs/design/<module>/)
-   
+
 2. Planner → /plan (текстовый) + brief.md
    (формат: [Файл] → [Сущности] → [cfg-флаги] → [Тесты] → [Валидация])
-   
+
 3. Architect утверждает plan
-   
-4. Coder → production code + tests
-   (строго по утверждённому плану)
-   
+
+4. Coder → production code + tests + documentation updates
+   (строго по утверждённому плану + README/CHANGELOG/context_bundle)
+
 5. Verification → cargo test && cargo clippy -- -D warnings
-   
+
 6. ADR → docs/adr/XXX-<module>.md (запись решения)
 ```
 
 **Важно**: Генерация кода ДОЛЖНА происходить ТОЛЬКО после утверждения плана архитектором.
+
+#### 🤖 Agent Workflow
+
+Проект использует специализированных ИИ-агентов для разработки и поддержки качества:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Development Workflow                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  smith-architect → smith-planner → smith-coder                 │
+│       (docs)        (plan)          (code + docs)              │
+│                                            ↓                   │
+│                               GitHub Actions (CI)               │
+│                                            ↓                   │
+│                  smith-debugger / smith-compliance             │
+│                    (QA / Maintenance)                          │
+│                                                                 │
+│  smith-crate-researcher ────────────────→ docs/crates/         │
+│       (crate docs from docs.rs)        (added to context)       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Агенты (`.qwen/agents/`):**
+
+| Агент | Роль | Ключевые задачи |
+|-------|------|-----------------|
+| **smith-architect** | Архитектор спецификаций | Создаёт `specification.md`, `contract.md`, `test-plan.md`, `brief.md`; обновляет README, CHANGELOG, context_bundle |
+| **smith-planner** | Планировщик | Преобразует спеку в `/plan`; генерирует `brief.md` для кодера |
+| **smith-coder** | Senior Rust-инженер | Генерирует код + тесты по утверждённому плану; автоматически обновляет документацию |
+| **smith-crate-researcher** | Исследователь зависимостей | Читает `docs.rs`, создаёт `docs/crates/*.md`, поддерживает актуальную документацию библиотек |
+| **smith-debugger** | Автономная отладка | Запускает тесты, находит ошибки, генерирует фиксы, верифицирует — полностью автономный цикл |
+| **smith-compliance** | Проверка compliance | Сканирует код/документы на нарушения; отчитывает по CRITICAL/WARNING/INFO |
+
+**Процессы:**
+
+**New Module Development:**
+1. Architect → `specification.md` + `contract.md` + `test-plan.md` + `brief.md`
+2. Planner → `/plan` (текстовый)
+3. Architect утверждает plan
+4. Coder → code + tests + README/CHANGELOG/context_bundle updates
+5. Verification: `cargo test && cargo clippy -- -D warnings`
+6. ADR → `docs/adr/XXX-<module>.md`
+
+**Bug Fix / Debugging (smith-debugger):**
+1. smith-debugger → `cargo test` (находит падения)
+2. Анализ причины → чтение файлов
+3. Генерация фикса → применение к коду/тесту
+4. Верификация: `cargo test` + `cargo clippy`
+5. Отчёт с доверием (high/medium/low)
+
+**Compliance Check (smith-compliance):**
+1. smith-compliance → сканирование `src/` и `docs/`
+2. Проверка AGENTS.md/ARCHITECTURE.md правил
+3. Запуск `cargo test`, `cargo clippy`, `cargo fmt`
+4. Категоризация: CRITICAL / WARNING / INFO
+5. Отчёт с compliance score (%)
 
 ### 📦 Core Concepts
 
@@ -280,69 +341,6 @@ name = "smith_windows"
 path = "src/lib.rs"
 ```
 
-### 🤖 AI Agent Workflow
-
-Проект использует специализированных ИИ-агентов для разработки:
-
-#### `smith-architect.md`
-
-**Роль**: Архитектор модуля
-
-**Задачи**:
-- Пишет спецификации (`specification.md`)
-- Определяет контракты (`contract.md`)
-- Составляет план тестов (`test-plan.md`)
-- Утверждает планы разработки
-- Проверяет соответствие стандартам
-
-**Контекст чтения**:
-1. `docs/design/<module>/specification.md`
-2. `docs/design/<module>/contract.md`
-3. `docs/design/<module>/test-plan.md`
-4. `docs/adr/XXX-<module>.md`
-5. `docs/design/windows/brief.md`
-
-#### `smith-planner.md`
-
-**Роль**: Планировщик реализации
-
-**Задачи**:
-- Преобразует спеку/контракт в текстовый `/plan`
-- Генерирует `docs/design/<module>/brief.md`
-- Проверяет соответствие стандартам
-- Формирует структуру файлов, типы, тесты
-
-**Формат `/plan`**:
-```
-[Файл] → [Сущности] → [cfg-флаги] → [Тесты] → [Валидация]
-```
-
-**Контекст чтения**:
-1. `AGENTS.md`
-2. `ARCHITECTURE.md`
-3. `docs/design/<module>/specification.md`
-4. `docs/design/<module>/contract.md`
-5. `docs/adr/XXX-<module>.md`
-
-#### `smith-coder.md`
-
-**Роль**: Ведущий Rust-инженер (TDD)
-
-**Задачи**:
-- Генерирует production-ready код строго по утверждённому плану
-- Пишет тесты (юнит + интеграционные)
-- Проверяет соответствие `AGENTS.md` и `ARCHITECTURE.md`
-- Обеспечивает компиляцию через `cargo clippy -- -D warnings`
-
-**Контекст чтения**:
-1. `AGENTS.md`
-2. `ARCHITECTURE.md`
-3. `/plan.md`
-4. `docs/design/<module>/contract.md`
-5. `docs/design/<module>/test-plan.md`
-
-**Важно**: Код генерируется ТОЛЬКО после утверждения плана архитектором.
-
 ### 📝 Development Conventions
 
 #### Code Style
@@ -422,12 +420,21 @@ pub async fn click_element(...) -> Result<(), ClickError> {
 **Issue**: Warnings in tests
 - **Solution**: Добавьте `#[allow(clippy::...)]` только если обосновано, иначе исправьте код.
 
+#### Common CI/CD Issues
+
+**Issue**: GitHub Actions fails with "context_bundle.md not found"
+- **Solution**: Run `cargo run --bin bundle_context` locally and commit the updated file.
+
+**Issue**: PR fails clippy checks with "deprecated method" warnings
+- **Solution**: Replace deprecated methods with recommended alternatives from clippy output.
+
 ### 📚 Additional Resources
 
-- **Agents**: `AGENTS.md` - правила для ИИ-агентов
-- **Agents**: `.qwen/agents/` — конфигурация ИИ-агентов
+- **Agents**: `AGENTS.md` — правила для ИИ-агентов
+- **Agents**: `.qwen/agents/` — конфигурация ИИ-агентов (smith-architect, smith-planner, smith-coder, smith-debugger, smith-compliance)
 - **Architecture**: `ARCHITECTURE.md` — детальная архитектура
 - **Templates**: `docs/templates/` — шаблоны документов
+- **CI/CD**: `.github/workflows/ci.yml` — GitHub Actions для CI, `.github/workflows/context-update.yml` — автообновление context_bundle
 
 ### 📦 Context Bundle Tool
 

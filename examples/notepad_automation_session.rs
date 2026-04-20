@@ -18,7 +18,7 @@ use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 
 use smith_windows::core::automation_session::{
-    SessionConfig, SessionLaunchConfig, launch_process, attach_by_process_id,
+    attach_by_process_id, launch_process, SessionConfig, SessionLaunchConfig,
 };
 use smith_windows::runtime::backends::windows::click::ClickBackendWindows;
 
@@ -79,26 +79,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Step 3: Try to find menu items
     println!("\nStep 3: Finding menu items in Notepad...");
-    
+
     // Use a direct search from the main element
     let automation = uiautomation::UIAutomation::new().map_err(|e| {
         println!("  Failed to create UIAutomation: {}", e);
         e
     })?;
-    
+
     // Search for MenuItem directly under main window
     println!("  Searching for MenuItem elements...");
-    let menu_items = automation.create_matcher()
+    let menu_items = automation
+        .create_matcher()
         .from(session.main_element.clone())
         .control_type(uiautomation::types::ControlType::MenuItem)
         .timeout(3000)
-        .find_all().map_err(|e| {
+        .find_all()
+        .map_err(|e| {
             println!("  Failed to find menu items: {}", e);
             e
         })?;
-    
+
     println!("  ✓ Found {} MenuItem elements", menu_items.len());
-    
+
     // Print all items for debugging
     for (i, item) in menu_items.iter().enumerate() {
         let name = item.get_name().unwrap_or_default();
@@ -109,11 +111,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Step 4: Find "Файл" menu item
     println!("\nStep 4: Finding 'Файл' menu item...");
 
-    let file_menu = menu_items.iter()
+    let file_menu = menu_items
+        .iter()
         .find(|item| {
-            item.get_name().ok().map(|name| {
-                name.contains("Файл") || name.contains("File")
-            }).unwrap_or(false)
+            item.get_name()
+                .ok()
+                .map(|name| name.contains("Файл") || name.contains("File"))
+                .unwrap_or(false)
         })
         .cloned()
         .ok_or("Файл menu item not found")?;
@@ -138,7 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Step 6: Demonstrate session cleanup
     println!("\nStep 6: Demonstrating session cleanup...");
-    
+
     // Close the session (terminates the process)
     match session.close().await {
         Ok(()) => {
@@ -156,6 +160,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  3. ClickTool works with UIElement from RuntimeSession");
     println!("  4. Session provides find_element() to locate child elements");
     println!("  5. Session can be closed to terminate the application");
-    
+
     Ok(())
 }

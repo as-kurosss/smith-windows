@@ -28,6 +28,10 @@ path = "tools/bundle_context.rs"
 name = "smith_windows"
 path = "src/lib.rs"
 
+[[test]]
+name = "integration"
+path = "tests/integration.rs"
+
 [[example]]
 name = "click_example"
 path = "examples/click_example.rs"

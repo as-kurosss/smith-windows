@@ -10,9 +10,10 @@ pub mod runtime;
 
 // Re-export core types for convenience
 pub use crate::core::automation_session::{
-    SessionConfig, SessionLaunchConfig, AutomationError, SessionState, MatchMode, RuntimeSession,
-    SessionBackend, launch_process, attach_by_title, attach_by_process_id,
-    validate_session_config, validate_title_filter, validate_regex, validate_command,
+    attach_by_process_id, attach_by_title, launch_process, validate_command, validate_regex,
+    validate_session_config, validate_title_filter, AutomationError, MatchMode, RuntimeSession,
+    SessionBackend, SessionConfig, SessionLaunchConfig, SessionState,
 };
-pub use crate::core::click::{ClickConfig, ClickError, ClickBackend};
-pub use crate::core::r#type::{TypeConfig, TypeError, TypeBackend};
+pub use crate::core::click::{ClickBackend, ClickConfig, ClickError};
+pub use crate::core::inspect::{InspectBackend, InspectConfig, InspectError};
+pub use crate::core::r#type::{TypeBackend, TypeConfig, TypeError};

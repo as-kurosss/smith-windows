@@ -51,7 +51,7 @@ pub fn validate_click_config(config: &ClickConfig) -> Result<(), ClickError> {
             "timeout must be > 0 and <= 1 hour".to_string(),
         ));
     }
-    
+
     Ok(())
 }
 
@@ -110,12 +110,15 @@ impl ClickBackend for MockClickBackend {
     async fn click(&self, _element: &uiautomation::UIElement) -> Result<(), ClickError> {
         let mut state = self.get_state();
         state.call_count += 1;
-        
+
         if state.should_succeed {
             state.last_error = None;
             Ok(())
         } else {
-            let error = state.last_error.clone().unwrap_or(ClickError::ElementNotFound);
+            let error = state
+                .last_error
+                .clone()
+                .unwrap_or(ClickError::ElementNotFound);
             state.last_error = Some(error.clone());
             Err(error)
         }
@@ -138,9 +141,7 @@ pub async fn click_with_config(
     let backend = ClickBackendWindows::new();
 
     // Wrap with timeout and cancellation
-    let click_future = async move {
-        backend.click(element).await
-    };
+    let click_future = async move { backend.click(element).await };
 
     // Wrap the future with timeout
     let result = tokio::time::timeout(config.timeout, click_future).await;
@@ -172,7 +173,7 @@ mod tests {
             timeout: Duration::from_secs(5),
             cancellation,
         };
-        
+
         assert!(validate_click_config(&config).is_ok());
     }
 
@@ -183,8 +184,11 @@ mod tests {
             timeout: Duration::ZERO,
             cancellation,
         };
-        
-        assert!(matches!(validate_click_config(&config), Err(ClickError::InvalidConfig(_))));
+
+        assert!(matches!(
+            validate_click_config(&config),
+            Err(ClickError::InvalidConfig(_))
+        ));
     }
 
     #[test]
@@ -194,8 +198,11 @@ mod tests {
             timeout: Duration::from_secs(3601), // > 1 hour
             cancellation,
         };
-        
-        assert!(matches!(validate_click_config(&config), Err(ClickError::InvalidConfig(_))));
+
+        assert!(matches!(
+            validate_click_config(&config),
+            Err(ClickError::InvalidConfig(_))
+        ));
     }
 
     #[test]

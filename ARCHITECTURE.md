@@ -19,7 +19,7 @@ MVP for integration into smith-core. Windows-only, uiautomation-only.
 
 ## 🔄 Communication & Flow
 - Task lifecycle: `Created → Queued → Running → [Completed | Failed | Cancelled]`
-- SessionBackend → SessionHandle → ClickBackend/TypeBackend
+- SessionBackend → SessionHandle → ClickBackend/TypeBackend/InspectBackend
 - `tokio::task::spawn_blocking` for all uiautomation/WinAPI calls
 
 ## 📐 Design Principles
@@ -35,13 +35,25 @@ MVP for integration into smith-core. Windows-only, uiautomation-only.
 smith-windows/
 ├── docs/
 │   ├── design/<module>/     # Working docs: specification.md, contract.md, test-plan.md, brief.md
+│   │   └── inspect-tool/    # InspectTool: inspect mode with Ctrl+hover capture
+│   │   └── click-tool/      # ClickTool: click on UI elements
+│   │   └── type-tool/       # TypeTool: type text on UI elements
+│   │   └── automation-session/  # AutomationSession: session management
 │   ├── templates/           # Document templates: specification.md, contract.md, test-plan.md, brief.md
 │   └── adr/                 # Architecture Decision Records
 ├── src/
 │   ├── core/                # Traits, types, errors, mocks, tests
+│   │   ├── click.rs         # ClickTool: config, error, backend trait
+│   │   ├── type.rs          # TypeTool: config, error, backend trait
+│   │   └── inspect.rs       # InspectTool: config, error, backend trait
 │   └── runtime/             # Windows implementations + unsupported stub
+│       └── backends/
+│           └── windows/
+│               ├── click.rs     # ClickBackendWindows implementation
+│               ├── type.rs      # TypeBackendWindows implementation
+│               └── inspect.rs   # InspectBackendWindows implementation
 ├── tests/                   # Integration tests
-├── .qwen/agents/            # smith-architect, smith-planner, smith-coder
+├── .qwen/agents/            # smith-architect, smith-planner, smith-coder, smith-crate-researcher, smith-debugger, smith-compliance
 ├── tools/                   # Development helper tools
 │   └── bundle_context.rs    # Project context collector (for AI agents)
 ├── Cargo.toml

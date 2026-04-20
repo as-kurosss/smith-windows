@@ -1,7 +1,7 @@
 //! Windows type implementation via uiautomation
 
+use crate::core::r#type::{TypeBackend, TypeError};
 use clipboard::ClipboardProvider;
-use crate::core::r#type::{TypeError, TypeBackend};
 
 /// Windows type backend implementation
 pub struct TypeBackendWindows;
@@ -21,7 +21,11 @@ impl Default for TypeBackendWindows {
 
 #[async_trait::async_trait(?Send)]
 impl TypeBackend for TypeBackendWindows {
-    async fn type_text(&self, element: &uiautomation::UIElement, text: &str) -> Result<(), TypeError> {
+    async fn type_text(
+        &self,
+        element: &uiautomation::UIElement,
+        text: &str,
+    ) -> Result<(), TypeError> {
         // Check if element is enabled
         let enabled_result = element.is_enabled();
         let is_enabled = match enabled_result {
@@ -67,7 +71,12 @@ impl TypeBackend for TypeBackendWindows {
             Some(())
         }));
 
-        let paste_failed = paste_result.is_err() || paste_result.as_ref().ok().map(|o| o.is_none()).unwrap_or(true);
+        let paste_failed = paste_result.is_err()
+            || paste_result
+                .as_ref()
+                .ok()
+                .map(|o| o.is_none())
+                .unwrap_or(true);
         if paste_failed {
             tracing::error!("Failed to set clipboard text");
             return Err(TypeError::ComError("Failed to set clipboard".to_string()));

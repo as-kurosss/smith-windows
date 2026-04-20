@@ -59,7 +59,11 @@ pub fn validate_type_config(config: &TypeConfig) -> Result<(), TypeError> {
 #[async_trait::async_trait(?Send)]
 pub trait TypeBackend {
     /// Types text into the given element
-    async fn type_text(&self, element: &uiautomation::UIElement, text: &str) -> Result<(), TypeError>;
+    async fn type_text(
+        &self,
+        element: &uiautomation::UIElement,
+        text: &str,
+    ) -> Result<(), TypeError>;
 }
 
 /// Mock backend for testing
@@ -107,7 +111,11 @@ impl MockTypeBackend {
 
 #[async_trait::async_trait(?Send)]
 impl TypeBackend for MockTypeBackend {
-    async fn type_text(&self, _element: &uiautomation::UIElement, _text: &str) -> Result<(), TypeError> {
+    async fn type_text(
+        &self,
+        _element: &uiautomation::UIElement,
+        _text: &str,
+    ) -> Result<(), TypeError> {
         let mut state = self.get_state();
         state.call_count += 1;
 
@@ -115,7 +123,10 @@ impl TypeBackend for MockTypeBackend {
             state.last_error = None;
             Ok(())
         } else {
-            let error = state.last_error.clone().unwrap_or(TypeError::ElementNotFound);
+            let error = state
+                .last_error
+                .clone()
+                .unwrap_or(TypeError::ElementNotFound);
             state.last_error = Some(error.clone());
             Err(error)
         }
@@ -195,7 +206,10 @@ mod tests {
             cancellation,
         };
 
-        assert!(matches!(validate_type_config(&config), Err(TypeError::InvalidConfig(_))));
+        assert!(matches!(
+            validate_type_config(&config),
+            Err(TypeError::InvalidConfig(_))
+        ));
     }
 
     #[test]
@@ -206,7 +220,10 @@ mod tests {
             cancellation,
         };
 
-        assert!(matches!(validate_type_config(&config), Err(TypeError::InvalidConfig(_))));
+        assert!(matches!(
+            validate_type_config(&config),
+            Err(TypeError::InvalidConfig(_))
+        ));
     }
 
     #[test]

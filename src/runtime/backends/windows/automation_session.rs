@@ -1,6 +1,6 @@
 //! Windows backend for automation session using UI Automation
 
-use tracing::{info, debug, error};
+use tracing::{debug, error, info};
 
 use crate::core::automation_session::{
     AutomationError, MatchMode, RuntimeSession, SessionBackend, SessionConfig, SessionLaunchConfig,
@@ -60,12 +60,10 @@ impl SessionBackendWindows {
 
     /// Gets the process ID from a UI element
     fn get_process_id(element: &uiautomation::UIElement) -> Result<u32, AutomationError> {
-        element
-            .get_process_id()
-            .map_err(|e| {
-                error!("Failed to get process ID: {}", e);
-                AutomationError::ComError(e.to_string())
-            })
+        element.get_process_id().map_err(|e| {
+            error!("Failed to get process ID: {}", e);
+            AutomationError::ComError(e.to_string())
+        })
     }
 
     /// Finds a window by title using UIAutomation
@@ -88,7 +86,8 @@ impl SessionBackendWindows {
         })?;
 
         // Use create_matcher() pattern - the correct API for uiautomation 0.24.4
-        let matcher = automation.create_matcher()
+        let matcher = automation
+            .create_matcher()
             .from(root)
             .control_type(uiautomation::types::ControlType::Window);
 
@@ -121,12 +120,14 @@ impl SessionBackendWindows {
             let matches = match mode {
                 MatchMode::Exact => element_name == title,
                 MatchMode::Contains => element_name.contains(title),
-                MatchMode::Regex => {
-                    match regex::Regex::new(title) {
-                        Ok(re) => re.is_match(&element_name),
-                        Err(_) => return Err(AutomationError::InvalidConfig("invalid regex pattern".to_string())),
+                MatchMode::Regex => match regex::Regex::new(title) {
+                    Ok(re) => re.is_match(&element_name),
+                    Err(_) => {
+                        return Err(AutomationError::InvalidConfig(
+                            "invalid regex pattern".to_string(),
+                        ))
                     }
-                }
+                },
             };
 
             if matches {
@@ -136,10 +137,7 @@ impl SessionBackendWindows {
                 // Get process ID
                 let process_id = Self::get_process_id(&element)?;
 
-                info!(
-                    "Attached to window: {} (PID: {})",
-                    element_name, process_id
-                );
+                info!("Attached to window: {} (PID: {})", element_name, process_id);
 
                 return Ok(RuntimeSession::new(process_id, element));
             }
@@ -167,7 +165,8 @@ impl SessionBackendWindows {
         })?;
 
         // Use create_matcher() pattern - the correct API for uiautomation 0.24.4
-        let matcher = automation.create_matcher()
+        let matcher = automation
+            .create_matcher()
             .from(root)
             .control_type(uiautomation::types::ControlType::Window);
 
@@ -230,11 +229,12 @@ impl SessionBackend for SessionBackendWindows {
         // Use timeout for the operation
         let timeout = config.timeout;
         let title_clone = title.clone();
-        
+
         let result = tokio::time::timeout(timeout, async move {
             let backend = SessionBackendWindows::new();
             backend.find_window_by_title(&title_clone, mode, only_visible)
-        }).await;
+        })
+        .await;
 
         match result {
             Ok(Ok(session)) => Ok(session),
@@ -269,11 +269,12 @@ impl SessionBackend for SessionBackendWindows {
 
         // Use timeout for the operation
         let timeout = config.timeout;
-        
+
         let result = tokio::time::timeout(timeout, async move {
             let backend = SessionBackendWindows::new();
             backend.find_window_by_process_id(process_id)
-        }).await;
+        })
+        .await;
 
         match result {
             Ok(Ok(session)) => Ok(session),
@@ -287,7 +288,10 @@ impl SessionBackend for SessionBackendWindows {
                 }
             }
             Err(_) => {
-                error!("Attach by process_id operation timed out after {:?}", timeout);
+                error!(
+                    "Attach by process_id operation timed out after {:?}",
+                    timeout
+                );
                 Err(AutomationError::WindowNotFound)
             }
         }

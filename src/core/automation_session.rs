@@ -1,11 +1,11 @@
 //! AutomationSession module for managing application lifecycle
 //! Provides process launch and window attachment functionality through UI Automation API.
 
+use clipboard::ClipboardProvider;
 use std::path::Path;
 use std::time::Duration;
 use thiserror::Error;
 use tokio_util::sync::CancellationToken;
-use clipboard::ClipboardProvider;
 
 /// Configuration for automation session
 #[derive(Debug, Clone)]
@@ -205,7 +205,9 @@ impl RuntimeSession {
         self.check_running()?;
 
         if text.is_empty() {
-            return Err(AutomationError::InvalidConfig("text cannot be empty".to_string()));
+            return Err(AutomationError::InvalidConfig(
+                "text cannot be empty".to_string(),
+            ));
         }
 
         // Check element validity
@@ -216,7 +218,10 @@ impl RuntimeSession {
                 return Err(AutomationError::ComError(e.to_string()));
             }
         };
-        tracing::debug!("Typing text into element with control type: {:?}", control_type);
+        tracing::debug!(
+            "Typing text into element with control type: {:?}",
+            control_type
+        );
 
         // Check if element is enabled
         let enabled_result = self.main_element.is_enabled();
@@ -263,10 +268,17 @@ impl RuntimeSession {
             Some(())
         }));
 
-        let paste_failed = paste_result.is_err() || paste_result.as_ref().ok().map(|o| o.is_none()).unwrap_or(true);
+        let paste_failed = paste_result.is_err()
+            || paste_result
+                .as_ref()
+                .ok()
+                .map(|o| o.is_none())
+                .unwrap_or(true);
         if paste_failed {
             tracing::error!("Failed to set clipboard text");
-            return Err(AutomationError::ComError("Failed to set clipboard".to_string()));
+            return Err(AutomationError::ComError(
+                "Failed to set clipboard".to_string(),
+            ));
         }
 
         // Give time for clipboard to be set
@@ -383,7 +395,8 @@ impl RuntimeSession {
             AutomationError::ComError(e.to_string())
         })?;
 
-        let found_element = match automation.create_matcher()
+        let found_element = match automation
+            .create_matcher()
             .from(self.main_element.clone())
             .control_type(ctrl_type)
             .timeout(1000)
@@ -399,7 +412,11 @@ impl RuntimeSession {
         // UIElement in 0.24.4 doesn't have is_empty() - check by accessing a property
         let found_name = found_element.get_name().unwrap_or_default();
         if found_name.is_empty() {
-            tracing::error!("Element not found: control_type={}, name={}", control_type, name.unwrap_or(""));
+            tracing::error!(
+                "Element not found: control_type={}, name={}",
+                control_type,
+                name.unwrap_or("")
+            );
             return Err(AutomationError::WindowNotFound);
         }
 
@@ -509,10 +526,13 @@ impl SessionBackend for MockSessionBackend {
             state.launch_last_error = None;
             Ok(state.launch_return_process_id)
         } else {
-            let error = state
-                .launch_last_error
-                .clone()
-                .unwrap_or(AutomationError::ProcessLaunchFailed("Mock error".to_string()));
+            let error =
+                state
+                    .launch_last_error
+                    .clone()
+                    .unwrap_or(AutomationError::ProcessLaunchFailed(
+                        "Mock error".to_string(),
+                    ));
             state.launch_last_error = Some(error.clone());
             Err(error)
         }
@@ -600,9 +620,8 @@ pub fn validate_title_filter(title: &str) -> Result<(), AutomationError> {
 /// Validates regex pattern
 /// Must be called BEFORE any backend invocation
 pub fn validate_regex(pattern: &str) -> Result<(), AutomationError> {
-    regex::Regex::new(pattern).map_err(|e| {
-        AutomationError::InvalidConfig(format!("invalid regex pattern: {}", e))
-    })?;
+    regex::Regex::new(pattern)
+        .map_err(|e| AutomationError::InvalidConfig(format!("invalid regex pattern: {}", e)))?;
 
     Ok(())
 }
@@ -711,7 +730,9 @@ pub async fn attach_by_title(
     #[cfg(target_os = "windows")]
     {
         let backend = crate::runtime::backends::windows::SessionBackendWindows::new();
-        backend.attach_by_title(title, mode, only_visible, config).await
+        backend
+            .attach_by_title(title, mode, only_visible, config)
+            .await
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -719,7 +740,7 @@ pub async fn attach_by_title(
         // On non-Windows platforms, we can't do real UI automation
         // Return an error indicating the platform is required
         Err(AutomationError::InvalidConfig(
-            "Windows platform is required for UI automation".to_string()
+            "Windows platform is required for UI automation".to_string(),
         ))
     }
 }
@@ -752,7 +773,7 @@ pub async fn attach_by_process_id(
         // On non-Windows platforms, we can't do real UI automation
         // Return an error indicating the platform is required
         Err(AutomationError::InvalidConfig(
-            "Windows platform is required for UI automation".to_string()
+            "Windows platform is required for UI automation".to_string(),
         ))
     }
 }
@@ -903,7 +924,10 @@ mod tests {
         };
 
         let result = backend.launch_process(&config).await;
-        assert!(matches!(result, Err(AutomationError::ProcessLaunchFailed(_))));
+        assert!(matches!(
+            result,
+            Err(AutomationError::ProcessLaunchFailed(_))
+        ));
     }
 
     #[tokio::test]
@@ -928,9 +952,18 @@ mod tests {
         let result2 = backend.launch_process(&config).await;
         let result3 = backend.launch_process(&config).await;
 
-        assert!(matches!(result1, Err(AutomationError::ProcessLaunchFailed(_))));
-        assert!(matches!(result2, Err(AutomationError::ProcessLaunchFailed(_))));
-        assert!(matches!(result3, Err(AutomationError::ProcessLaunchFailed(_))));
+        assert!(matches!(
+            result1,
+            Err(AutomationError::ProcessLaunchFailed(_))
+        ));
+        assert!(matches!(
+            result2,
+            Err(AutomationError::ProcessLaunchFailed(_))
+        ));
+        assert!(matches!(
+            result3,
+            Err(AutomationError::ProcessLaunchFailed(_))
+        ));
 
         // Call count should be 3
         assert_eq!(backend.get_state().launch_call_count, 3);

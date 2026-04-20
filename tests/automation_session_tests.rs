@@ -4,9 +4,9 @@ use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
 use smith_windows::core::automation_session::{
-    validate_session_config, validate_title_filter, validate_regex, validate_command,
-    launch_process, attach_by_title, attach_by_process_id, SessionConfig, SessionLaunchConfig,
-    MatchMode, AutomationError, MockSessionBackend, MockSessionState, RuntimeSession, SessionState,
+    attach_by_process_id, attach_by_title, launch_process, validate_command, validate_regex,
+    validate_session_config, validate_title_filter, AutomationError, MatchMode, MockSessionBackend,
+    MockSessionState, RuntimeSession, SessionConfig, SessionLaunchConfig, SessionState,
 };
 
 /// Helper function to create a valid session config
@@ -31,8 +31,12 @@ async fn test_integration_launch_process_success() {
     let config = valid_launch_config();
     let result = launch_process(&config).await;
 
-    assert!(result.is_ok(), "Expected Ok(process_id) but got {:?}", result);
-    
+    assert!(
+        result.is_ok(),
+        "Expected Ok(process_id) but got {:?}",
+        result
+    );
+
     let process_id = result.unwrap();
     assert!(process_id > 0, "Process ID should be > 0");
 
@@ -49,10 +53,10 @@ async fn test_integration_launch_process_with_args() {
         args: Some(vec!["/A".to_string()]), // Open in admin mode (will fail on normal systems)
         working_dir: None,
     };
-    
+
     // This will likely fail but should validate correctly
     let result = launch_process(&config).await;
-    
+
     // We expect either success (if admin mode works) or ProcessLaunchFailed
     match result {
         Ok(process_id) => {
@@ -77,7 +81,7 @@ async fn test_integration_launch_process_empty_command() {
         args: None,
         working_dir: None,
     };
-    
+
     let result = launch_process(&config).await;
     assert!(matches!(result, Err(AutomationError::InvalidConfig(_))));
 }
@@ -89,9 +93,12 @@ async fn test_integration_launch_process_nonexistent() {
         args: None,
         working_dir: None,
     };
-    
+
     let result = launch_process(&config).await;
-    assert!(matches!(result, Err(AutomationError::ProcessLaunchFailed(_))));
+    assert!(matches!(
+        result,
+        Err(AutomationError::ProcessLaunchFailed(_))
+    ));
 }
 
 #[tokio::test]
@@ -101,9 +108,9 @@ async fn test_integration_launch_process_working_dir() {
         args: None,
         working_dir: Some("C:\\Windows".to_string()),
     };
-    
+
     let result = launch_process(&config).await;
-    
+
     match result {
         Ok(process_id) => {
             assert!(process_id > 0);
@@ -126,7 +133,7 @@ async fn test_integration_validate_session_config_valid() {
         timeout: Duration::from_secs(5),
         cancellation: CancellationToken::new(),
     };
-    
+
     assert!(validate_session_config(&config).is_ok());
 }
 
@@ -136,7 +143,7 @@ async fn test_integration_validate_session_config_zero_timeout() {
         timeout: Duration::ZERO,
         cancellation: CancellationToken::new(),
     };
-    
+
     assert!(matches!(
         validate_session_config(&config),
         Err(AutomationError::InvalidConfig(_))
@@ -149,7 +156,7 @@ async fn test_integration_validate_session_config_large_timeout() {
         timeout: Duration::from_secs(3601), // > 1 hour
         cancellation: CancellationToken::new(),
     };
-    
+
     assert!(matches!(
         validate_session_config(&config),
         Err(AutomationError::InvalidConfig(_))
@@ -233,7 +240,10 @@ async fn test_integration_mock_backend_failure() {
     };
 
     let result = backend.launch_process(&config).await;
-    assert!(matches!(result, Err(AutomationError::ProcessLaunchFailed(_))));
+    assert!(matches!(
+        result,
+        Err(AutomationError::ProcessLaunchFailed(_))
+    ));
 }
 
 #[tokio::test]
@@ -258,9 +268,18 @@ async fn test_integration_mock_idempotency() {
     let result2 = backend.launch_process(&config).await;
     let result3 = backend.launch_process(&config).await;
 
-    assert!(matches!(result1, Err(AutomationError::ProcessLaunchFailed(_))));
-    assert!(matches!(result2, Err(AutomationError::ProcessLaunchFailed(_))));
-    assert!(matches!(result3, Err(AutomationError::ProcessLaunchFailed(_))));
+    assert!(matches!(
+        result1,
+        Err(AutomationError::ProcessLaunchFailed(_))
+    ));
+    assert!(matches!(
+        result2,
+        Err(AutomationError::ProcessLaunchFailed(_))
+    ));
+    assert!(matches!(
+        result3,
+        Err(AutomationError::ProcessLaunchFailed(_))
+    ));
 
     assert_eq!(backend.get_state().launch_call_count, 3);
 }
@@ -279,7 +298,10 @@ async fn test_integration_runtime_session_state() {
     assert!(session.is_closed());
 
     // Try to close again - should fail
-    assert!(matches!(session.set_closed(), Err(AutomationError::SessionClosed)));
+    assert!(matches!(
+        session.set_closed(),
+        Err(AutomationError::SessionClosed)
+    ));
 }
 
 #[tokio::test]
@@ -290,7 +312,10 @@ async fn test_integration_runtime_session_check_running() {
     assert!(session.check_running().is_ok());
 
     session.set_closed().expect("Failed to close session");
-    assert!(matches!(session.check_running(), Err(AutomationError::SessionClosed)));
+    assert!(matches!(
+        session.check_running(),
+        Err(AutomationError::SessionClosed)
+    ));
 }
 
 #[tokio::test]
@@ -365,21 +390,30 @@ async fn test_integration_runtime_session_after_close() {
     session.set_closed().expect("Failed to close session");
 
     // All operations should fail with SessionClosed
-    assert!(matches!(session.click().await, Err(AutomationError::SessionClosed)));
-    assert!(matches!(session.type_text("test").await, Err(AutomationError::SessionClosed)));
-    assert!(matches!(session.find_element("Button", None).await, Err(AutomationError::SessionClosed)));
+    assert!(matches!(
+        session.click().await,
+        Err(AutomationError::SessionClosed)
+    ));
+    assert!(matches!(
+        session.type_text("test").await,
+        Err(AutomationError::SessionClosed)
+    ));
+    assert!(matches!(
+        session.find_element("Button", None).await,
+        Err(AutomationError::SessionClosed)
+    ));
 }
 
 #[tokio::test]
 async fn test_integration_config_validation_before_backend() {
     // Test that validation happens before backend call
-    
+
     // Invalid timeout (0)
     let config = SessionConfig {
         timeout: Duration::ZERO,
         cancellation: CancellationToken::new(),
     };
-    
+
     // This should fail validation before any backend call
     let result = attach_by_title("Test".to_string(), MatchMode::Exact, true, &config).await;
     assert!(matches!(result, Err(AutomationError::InvalidConfig(_))));
@@ -389,7 +423,7 @@ async fn test_integration_config_validation_before_backend() {
         timeout: Duration::from_secs(3601),
         cancellation: CancellationToken::new(),
     };
-    
+
     let result = attach_by_title("Test".to_string(), MatchMode::Exact, true, &config).await;
     assert!(matches!(result, Err(AutomationError::InvalidConfig(_))));
 
@@ -432,15 +466,21 @@ async fn test_integration_mock_backend_idempotent_error() {
 
     // First call
     let result1 = backend.launch_process(&config).await;
-    assert!(matches!(result1, Err(AutomationError::ProcessLaunchFailed(ref s)) if s.contains("Consistent error")));
+    assert!(
+        matches!(result1, Err(AutomationError::ProcessLaunchFailed(ref s)) if s.contains("Consistent error"))
+    );
 
     // Second call should have same error
     let result2 = backend.launch_process(&config).await;
-    assert!(matches!(result2, Err(AutomationError::ProcessLaunchFailed(ref s)) if s.contains("Consistent error")));
+    assert!(
+        matches!(result2, Err(AutomationError::ProcessLaunchFailed(ref s)) if s.contains("Consistent error"))
+    );
 
     // Third call should have same error
     let result3 = backend.launch_process(&config).await;
-    assert!(matches!(result3, Err(AutomationError::ProcessLaunchFailed(ref s)) if s.contains("Consistent error")));
+    assert!(
+        matches!(result3, Err(AutomationError::ProcessLaunchFailed(ref s)) if s.contains("Consistent error"))
+    );
 }
 
 #[tokio::test]
@@ -462,14 +502,14 @@ async fn test_integration_mock_backend_consistent_error() {
     };
 
     let initial_count = backend.get_state().launch_call_count;
-    
+
     // Multiple calls with error
     let _ = backend.launch_process(&config).await;
     let _ = backend.launch_process(&config).await;
     let _ = backend.launch_process(&config).await;
 
     let final_count = backend.get_state().launch_call_count;
-    
+
     // Call count should increase, but error should remain consistent
     assert_eq!(final_count, initial_count + 3);
 }
@@ -482,10 +522,10 @@ async fn test_integration_cancellation() {
     };
 
     let config_clone = config.clone();
-    
+
     // Cancel before the call
     config_clone.cancellation.cancel();
-    
+
     let result = attach_by_title("Test".to_string(), MatchMode::Exact, true, &config_clone).await;
     assert!(matches!(result, Err(AutomationError::Cancelled)));
 }
