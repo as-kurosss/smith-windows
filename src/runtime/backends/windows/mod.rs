@@ -2,6 +2,7 @@
 
 pub mod automation_session;
 pub mod click;
+pub mod hotkey;
 pub mod input;
 pub mod inspect;
 pub mod r#type;

@@ -135,3 +135,37 @@ pub async fn get_element_with_ctrl_simulation(
 
     Ok(element)
 }
+
+/// Gets the UI element under cursor when user presses Ctrl (real Ctrl+Hover)
+/// This function waits for the user to physically press Ctrl while hovering over an element
+/// Uses hotkey registration and polling to detect the Ctrl key press
+pub async fn get_element_under_ctrl_hotkey(
+    config: &InputConfig,
+) -> Result<uiautomation::UIElement, InputError> {
+    // Validate config
+    validate_input_config(config)?;
+
+    info!("Waiting for real Ctrl+Hover (user will press Ctrl)...");
+
+    // Get timeout from config
+    let timeout = config.timeout;
+
+    // Register hotkey and wait for Ctrl press
+    let (x, y) = crate::runtime::backends::windows::hotkey::wait_for_hotkey(timeout).await?;
+
+    info!("Ctrl+Hover detected at ({}, {})", x, y);
+
+    // Get element at cursor position
+    let element = InputBackendWindows::new()
+        .get_element_at_point(x, y)
+        .await?;
+
+    info!("Element found: {:?}", element.get_name().ok());
+
+    Ok(element)
+}
+
+/// Unregisters the hotkey (no-op in polling implementation)
+pub fn unregister_hotkey() {
+    // No-op in polling mode
+}

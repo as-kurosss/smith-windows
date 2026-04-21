@@ -1,15 +1,16 @@
 //! InspectTool interactive example: Get any element under cursor with Ctrl
 //!
 //! This example demonstrates the full "Ctrl+Hover" functionality:
-//! 1. Press and hold Ctrl key
-//! 2. Move cursor over any UI element (button, text, etc.)
-//! 3. Release Ctrl - the element path will be displayed
+//! 1. Wait for user to physically press Ctrl key while hovering over an element
+//! 2. Capture the element under the cursor
+//! 3. Build the full hierarchy path from window to element
+//! 4. Display the recorded selector
 //!
 //! Usage:
 //! 1. Run the example
-//! 2. Press and hold Ctrl key
-//! 3. Move cursor over any UI element
-//! 4. Release Ctrl - element path will be displayed
+//! 2. Move cursor over any UI element (button, text, etc.)
+//! 3. Press and hold Ctrl key - element will be captured
+//! 4. Element path and selector will be displayed
 //! 5. Press Ctrl+C to exit
 
 use std::time::Duration;
@@ -17,11 +18,9 @@ use tracing_subscriber::EnvFilter;
 
 use smith_windows::core::input::InputConfig;
 use smith_windows::core::inspect::{InspectBackend, InspectConfig};
-use smith_windows::runtime::backends::windows::input::{
-    get_element_under_cursor, InputBackendWindows,
-};
+use smith_windows::core::selector::{RecordedSelector, SelectorStep};
+use smith_windows::runtime::backends::windows::input::get_element_under_ctrl_hotkey;
 use smith_windows::runtime::backends::windows::inspect::InspectBackendWindows;
-use smith_windows::InputBackend;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -32,30 +31,40 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("=== InspectTool Interactive Example (Ctrl+Hover) ===\n");
     println!("Instructions:");
-    println!("1. Press and hold Ctrl key");
-    println!("2. Move cursor over any UI element (button, text, etc.)");
-    println!("3. Release Ctrl - element path will be displayed");
+    println!("1. Move cursor over any UI element (button, text, etc.)");
+    println!("2. Press and hold Ctrl key - element will be captured");
+    println!("3. Element path and selector will be displayed");
     println!("4. Press Ctrl+C to exit\n");
 
     let config = InputConfig {
-        timeout: Duration::from_secs(10),
+        timeout: Duration::from_secs(30),
         cancellation: tokio_util::sync::CancellationToken::new(),
     };
 
     println!("Waiting for Ctrl+Hover interaction...\n");
 
-    // Simulate Ctrl+Hover
-    match get_element_with_ctrl_simulation(&config).await {
+    // Wait for real Ctrl+Hover (user physically presses Ctrl)
+    match get_element_under_ctrl_hotkey(&config).await {
         Ok(element) => {
-            println!("\n=== Element Found ===");
+            println!("\n=== Element Captured ===");
+
+            // Get element properties using SelectorStep
+            let step = SelectorStep::from_element(&element)?;
+            println!("Element properties:");
+            step.print();
+
             let control_type = match element.get_control_type() {
                 Ok(t) => t,
                 Err(_) => uiautomation::types::ControlType::Custom,
             };
-            println!("Control type: {}", control_type);
-            println!("Name: {}", element.get_name().unwrap_or_default());
-            println!("Is enabled: {}", element.is_enabled().unwrap_or(false));
-            println!("Is offscreen: {}", element.is_offscreen().unwrap_or(false));
+            println!("\nElement details:");
+            println!("  Control type: {}", control_type);
+            println!("  Name: {}", element.get_name().unwrap_or_default());
+            println!("  Is enabled: {}", element.is_enabled().unwrap_or(false));
+            println!(
+                "  Is offscreen: {}",
+                element.is_offscreen().unwrap_or(false)
+            );
 
             // Get the element's window ancestor (head_window)
             let automation = uiautomation::UIAutomation::new()?;
@@ -72,14 +81,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let inspect_backend = InspectBackendWindows::new();
             let path = inspect_backend.inspect_path(&window, &element).await?;
 
+            // Build full recorded selector tree
+            let recorded = build_full_selector_tree(&automation, &element)?;
+
             println!("\n=== Full Hierarchy Path ===");
             println!("{}", path);
             println!("\nPath format: Window{{title}}-> ControlType{{Name}}-> Element");
+
+            println!("\n=== Recorded Selector Tree ===");
+            recorded.print_tree();
+
+            if let Some(selector) = recorded.to_selector() {
+                println!("\n=== Final Selector ===");
+                println!("{}", selector);
+            }
+
             println!("\nThis path was built using:");
             println!("  1. GetCursorPos() - get cursor coordinates");
             println!("  2. UIAutomation::element_from_point() - get element at coordinates");
-            println!("  3. UITreeWalker::get_parent() - traverse to head window");
+            println!("  3. TreeWalker::get_parent() - traverse to head window");
             println!("  4. Path reversed to show Window -> Element order");
+            println!("  5. Selector steps from root to element with properties");
         }
         Err(e) => {
             println!("Failed to get element: {}", e);
@@ -113,28 +135,42 @@ async fn find_ancestor_window(
     Ok(current)
 }
 
-/// Gets the element under cursor with Ctrl key simulation
-async fn get_element_with_ctrl_simulation(
-    _config: &InputConfig,
-) -> Result<uiautomation::UIElement, smith_windows::core::input::InputError> {
-    let backend = InputBackendWindows::new();
+/// Builds the full selector tree from root to element
+fn build_full_selector_tree(
+    automation: &uiautomation::UIAutomation,
+    element: &uiautomation::UIElement,
+) -> Result<RecordedSelector, Box<dyn std::error::Error>> {
+    let mut steps = Vec::new();
+    let mut current = element.clone();
 
-    // Press Control key
-    println!("Pressing Control key...");
-    backend.click_key("{CTRL}").await?;
+    let walker = automation.create_tree_walker()?;
 
-    // Small delay to ensure key is pressed
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    const MAX_DEPTH: usize = 100;
 
-    // Get element at cursor position
-    println!("Getting element under cursor...");
-    let element = get_element_under_cursor().await?;
+    // Walk up the tree from element to root
+    loop {
+        if steps.len() >= MAX_DEPTH {
+            return Err("Selector tree exceeds maximum depth of 100".into());
+        }
 
-    println!("Element found: {:?}", element.get_name().ok());
+        let step = SelectorStep::from_element(&current)?;
+        steps.push(step);
 
-    // Release Control key
-    println!("Releasing Control key...");
-    backend.click_key("{CTRL}").await?;
+        match walker.get_parent(&current) {
+            Ok(parent) => {
+                current = parent;
+            }
+            Err(_) => {
+                // Reached root
+                break;
+            }
+        }
+    }
 
-    Ok(element)
+    // Reverse to go from root to element
+    steps.reverse();
+
+    let depth = steps.len();
+
+    Ok(RecordedSelector { steps, depth })
 }

@@ -26,4 +26,7 @@ pub use crate::core::inspect::{
 pub use crate::core::r#type::{
     validate_type_config, MockTypeBackend, TypeBackend, TypeConfig, TypeError,
 };
-pub use crate::runtime::backends::windows::input::{get_cursor_position, get_element_under_cursor};
+pub use crate::core::selector::{RecordedSelector, Selector, SelectorError, SelectorStep};
+pub use crate::runtime::backends::windows::input::{
+    get_cursor_position, get_element_under_ctrl_hotkey, get_element_under_cursor,
+};
