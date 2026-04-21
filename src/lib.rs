@@ -14,6 +14,12 @@ pub use crate::core::automation_session::{
     validate_session_config, validate_title_filter, AutomationError, MatchMode, RuntimeSession,
     SessionBackend, SessionConfig, SessionLaunchConfig, SessionState,
 };
-pub use crate::core::click::{ClickBackend, ClickConfig, ClickError};
-pub use crate::core::inspect::{InspectBackend, InspectConfig, InspectError};
-pub use crate::core::r#type::{TypeBackend, TypeConfig, TypeError};
+pub use crate::core::click::{
+    validate_click_config, ClickBackend, ClickConfig, ClickError, MockClickBackend,
+};
+pub use crate::core::inspect::{
+    validate_inspect_config, InspectBackend, InspectConfig, InspectError, MockInspectBackend,
+};
+pub use crate::core::r#type::{
+    validate_type_config, MockTypeBackend, TypeBackend, TypeConfig, TypeError,
+};
