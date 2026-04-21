@@ -15,10 +15,13 @@
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 
-use smith_windows::core::input::{get_element_under_cursor, InputConfig, InputError};
-use smith_windows::core::inspect::{InspectBackend, InspectConfig, InspectError};
-use smith_windows::runtime::backends::windows::input::InputBackendWindows;
+use smith_windows::core::input::InputConfig;
+use smith_windows::core::inspect::{InspectBackend, InspectConfig};
+use smith_windows::runtime::backends::windows::input::{
+    get_element_under_cursor, InputBackendWindows,
+};
 use smith_windows::runtime::backends::windows::inspect::InspectBackendWindows;
+use smith_windows::InputBackend;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -45,10 +48,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     match get_element_with_ctrl_simulation(&config).await {
         Ok(element) => {
             println!("\n=== Element Found ===");
-            println!(
-                "Control type: {}",
-                element.get_control_type().unwrap_or_default()
-            );
+            let control_type = match element.get_control_type() {
+                Ok(t) => t,
+                Err(_) => uiautomation::types::ControlType::Custom,
+            };
+            println!("Control type: {}", control_type);
             println!("Name: {}", element.get_name().unwrap_or_default());
             println!("Is enabled: {}", element.is_enabled().unwrap_or(false));
             println!("Is offscreen: {}", element.is_offscreen().unwrap_or(false));
@@ -60,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Find the top-level window containing this element
             let window = find_ancestor_window(&root, &element).await?;
 
-            let inspect_config = InspectConfig {
+            let _inspect_config = InspectConfig {
                 timeout: Duration::from_secs(5),
                 cancellation: tokio_util::sync::CancellationToken::new(),
             };
@@ -96,7 +100,12 @@ async fn find_ancestor_window(
 
     let mut current = element.clone();
 
-    while current != *root {
+    loop {
+        // Compare elements using automation.compare_elements since UIElement doesn't implement PartialEq
+        let is_same = automation.compare_elements(&current, root)?;
+        if is_same {
+            break;
+        }
         let parent = walker.get_parent(&current)?;
         current = parent;
     }
@@ -106,8 +115,8 @@ async fn find_ancestor_window(
 
 /// Gets the element under cursor with Ctrl key simulation
 async fn get_element_with_ctrl_simulation(
-    config: &InputConfig,
-) -> Result<uiautomation::UIElement, InputError> {
+    _config: &InputConfig,
+) -> Result<uiautomation::UIElement, smith_windows::core::input::InputError> {
     let backend = InputBackendWindows::new();
 
     // Press Control key
