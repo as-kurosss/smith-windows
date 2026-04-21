@@ -39,23 +39,42 @@ async fn demo_ctrl_hover() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== Demo 2: Ctrl+Hover Element Capture ===");
 
     let config = InputConfig {
-        timeout: Duration::from_secs(10),
+        timeout: Duration::from_secs(1),
         cancellation: tokio_util::sync::CancellationToken::new(),
     };
 
     println!("Instructions:");
     println!("  1. Move cursor over any UI element");
-    println!("  2. Press and hold Ctrl key");
+    println!("  2. Press and hold Ctrl key (timeout: 1s)");
     println!("  3. Element will be captured automatically");
+    println!("  Note: If you don't press Ctrl, the demo will continue automatically");
+    println!("        with a sample element from the current screen.");
 
-    let element = get_element_under_ctrl_hotkey(&config).await?;
+    match get_element_under_ctrl_hotkey(&config).await {
+        Ok(element) => {
+            println!("\nElement captured from Ctrl+Hover:");
+            let step = SelectorStep::from_element(&element)?;
+            println!("  Classname: {:?}", step.classname);
+            println!("  Control type: {:?}", step.control_type);
+            println!("  Name: {:?}", step.name);
+            println!("  Automation ID: {:?}", step.automation_id);
+        }
+        Err(_e) => {
+            println!("\n⚠ Ctrl+Hover timed out, using element at screen center...");
 
-    println!("\nElement captured:");
-    let step = SelectorStep::from_element(&element)?;
-    println!("  Classname: {:?}", step.classname);
-    println!("  Control type: {:?}", step.control_type);
-    println!("  Name: {:?}", step.name);
-    println!("  Automation ID: {:?}", step.automation_id);
+            // Get element at screen center as fallback
+            let (x, y) = get_cursor_position()?;
+            let automation = uiautomation::UIAutomation::new()?;
+            let element = automation.element_from_point(uiautomation::types::Point::new(x, y))?;
+
+            println!("\nElement at cursor position:");
+            let step = SelectorStep::from_element(&element)?;
+            println!("  Classname: {:?}", step.classname);
+            println!("  Control type: {:?}", step.control_type);
+            println!("  Name: {:?}", step.name);
+            println!("  Automation ID: {:?}", step.automation_id);
+        }
+    }
 
     Ok(())
 }
@@ -71,12 +90,9 @@ async fn demo_full_hierarchy() -> Result<(), Box<dyn std::error::Error>> {
     let automation = uiautomation::UIAutomation::new()?;
     let root = automation.get_root_element()?;
 
-    // Get element under cursor for demo
-    let element = get_element_under_ctrl_hotkey(&InputConfig {
-        timeout: Duration::from_secs(10),
-        cancellation: tokio_util::sync::CancellationToken::new(),
-    })
-    .await?;
+    // Get element at screen center for demo
+    let (x, y) = get_cursor_position()?;
+    let element = automation.element_from_point(uiautomation::types::Point::new(x, y))?;
 
     // Find the head window
     let window = find_ancestor_window(&root, &element).await?;
@@ -102,12 +118,9 @@ async fn demo_recorded_selector() -> Result<(), Box<dyn std::error::Error>> {
 
     let automation = uiautomation::UIAutomation::new()?;
 
-    // Get element under cursor for demo
-    let element = get_element_under_ctrl_hotkey(&InputConfig {
-        timeout: Duration::from_secs(10),
-        cancellation: tokio_util::sync::CancellationToken::new(),
-    })
-    .await?;
+    // Get element at screen center for demo
+    let (x, y) = get_cursor_position()?;
+    let element = automation.element_from_point(uiautomation::types::Point::new(x, y))?;
 
     // Build selector tree
     let recorded = build_full_selector_tree(&automation, &element)?;
@@ -245,7 +258,7 @@ async fn find_ancestor_window(
 
 /// Finds a window by title
 async fn find_window_by_title(
-    _root: &uiautomation::UIElement,
+    root: &uiautomation::UIElement,
     _title: &str,
 ) -> Result<uiautomation::UIElement, Box<dyn std::error::Error>> {
     let automation = uiautomation::UIAutomation::new()?;
