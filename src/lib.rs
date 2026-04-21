@@ -17,6 +17,9 @@ pub use crate::core::automation_session::{
 pub use crate::core::click::{
     validate_click_config, ClickBackend, ClickConfig, ClickError, MockClickBackend,
 };
+pub use crate::core::input::{
+    validate_input_config, InputBackend, InputConfig, InputError, MockInputBackend,
+};
 pub use crate::core::inspect::{
     validate_inspect_config, InspectBackend, InspectConfig, InspectError, MockInspectBackend,
 };
