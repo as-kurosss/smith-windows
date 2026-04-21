@@ -532,6 +532,7 @@ dependencies = [
  "tracing-subscriber",
  "trybuild",
  "uiautomation",
+ "windows",
 ]
 
 [[package]]

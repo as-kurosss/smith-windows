@@ -17,6 +17,7 @@ uiautomation = "0.24.4"
 trybuild = "1.0.116"
 regex = "1.12.3"
 clipboard = "0.5"
+windows = { version = "0.62.0", features = ["Win32_UI_WindowsAndMessaging", "Win32_UI_Accessibility"] }
 
 [target.'cfg(windows)'.dependencies]
 
@@ -39,3 +40,7 @@ path = "examples/click_example.rs"
 [[example]]
 name = "notepad_click"
 path = "examples/notepad_click.rs"
+
+[[example]]
+name = "inspect_interactive"
+path = "examples/inspect_interactive.rs"

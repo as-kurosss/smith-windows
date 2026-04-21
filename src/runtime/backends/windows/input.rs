@@ -1,6 +1,8 @@
 //! Windows backend for input operations using UI Automation
 
 use tracing::{error, info};
+use windows::Win32::Foundation::POINT;
+use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 
 use crate::core::input::{validate_input_config, InputBackend, InputConfig, InputError};
 
@@ -28,7 +30,6 @@ impl InputBackend for InputBackendWindows {
         y: i32,
     ) -> Result<uiautomation::UIElement, InputError> {
         // Use UIAutomation to get element from point
-        // All UIA calls should be done in spawn_blocking for COM safety
         let automation = uiautomation::UIAutomation::new().map_err(|e| {
             error!("Failed to create UIAutomation: {}", e);
             InputError::ComError(e.to_string())
@@ -46,8 +47,6 @@ impl InputBackend for InputBackendWindows {
 
     async fn move_mouse(&self, x: i32, y: i32) -> Result<(), InputError> {
         // Move mouse to coordinates using uiautomation::inputs
-        // Note: These operations use WinAPI SendInput and should be called directly
-        // without spawn_blocking as they handle COM internally
         uiautomation::inputs::Mouse::new()
             .move_to(&uiautomation::types::Point::new(x, y))
             .map_err(|e| {
@@ -60,8 +59,6 @@ impl InputBackend for InputBackendWindows {
 
     async fn click_key(&self, key: &str) -> Result<(), InputError> {
         // Click key using uiautomation::inputs
-        // Note: These operations use WinAPI SendInput and should be called directly
-        // without spawn_blocking as they handle COM internally
         uiautomation::inputs::Keyboard::new()
             .send_keys(key)
             .map_err(|e| {
@@ -73,26 +70,51 @@ impl InputBackend for InputBackendWindows {
     }
 }
 
+/// Gets the current cursor position using WinAPI GetCursorPos
+/// Returns (x, y) coordinates relative to the primary monitor
+pub fn get_cursor_position() -> Result<(i32, i32), InputError> {
+    let mut point = POINT { x: 0, y: 0 };
+
+    unsafe {
+        match GetCursorPos(&mut point) {
+            Ok(()) => Ok((point.x, point.y)),
+            Err(_) => {
+                error!("Failed to get cursor position");
+                Err(InputError::ComError("GetCursorPos failed".to_string()))
+            }
+        }
+    }
+}
+
+/// Gets the UI element under the cursor (at current cursor position)
+/// Uses GetCursorPos to get coordinates, then element_from_point to get the element
+pub async fn get_element_under_cursor() -> Result<uiautomation::UIElement, InputError> {
+    info!("Getting cursor position...");
+    let (x, y) = get_cursor_position()?;
+    info!("Cursor position: ({}, {})", x, y);
+
+    let backend = InputBackendWindows::new();
+    backend.get_element_at_point(x, y).await
+}
+
 /// Gets the UI element at specific coordinates with Ctrl key pressed
 /// This function simulates the "Ctrl+Hover" pattern:
-/// 1. Moves mouse to coordinates
+/// 1. Gets current cursor position
 /// 2. Presses Ctrl key
-/// 3. Gets element at coordinates
+/// 3. Gets element at cursor position
 /// 4. Releases Ctrl key
 /// 5. Returns the element
 pub async fn get_element_with_ctrl_simulation(
     config: &InputConfig,
-    x: i32,
-    y: i32,
 ) -> Result<uiautomation::UIElement, InputError> {
     // Validate config
     validate_input_config(config)?;
 
-    let backend = InputBackendWindows::new();
+    info!("Getting cursor position...");
+    let (x, y) = get_cursor_position()?;
+    info!("Cursor position: ({}, {})", x, y);
 
-    // Move mouse to coordinates
-    info!("Moving mouse to ({}, {})...", x, y);
-    backend.move_mouse(x, y).await?;
+    let backend = InputBackendWindows::new();
 
     // Press Control key
     info!("Pressing Control key...");
@@ -101,8 +123,8 @@ pub async fn get_element_with_ctrl_simulation(
     // Small delay to ensure key is pressed
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
-    // Get element at coordinates
-    info!("Getting element at ({}, {})...", x, y);
+    // Get element at cursor position
+    info!("Getting element at cursor position...");
     let element = backend.get_element_at_point(x, y).await?;
 
     info!("Element found: {:?}", element.get_name().ok());
