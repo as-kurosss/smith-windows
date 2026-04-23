@@ -1,0 +1,46 @@
+{
+  "app_name": "Notepad",
+  "version": 1,
+  "selectors": {
+    "calculator_button": {
+      "steps": [
+        {
+          "classname": "CalcFrame",
+          "control_type": null,
+          "name": "",
+          "automation_id": null
+        },
+        {
+          "classname": "Button",
+          "control_type": null,
+          "name": "1",
+          "automation_id": null
+        }
+      ],
+      "depth": 2
+    },
+    "notepad_file_menu": {
+      "steps": [
+        {
+          "classname": "Notepad",
+          "control_type": null,
+          "name": "Untitled - Notepad",
+          "automation_id": null
+        },
+        {
+          "classname": "Edit",
+          "control_type": null,
+          "name": "",
+          "automation_id": "12345"
+        },
+        {
+          "classname": "Menu",
+          "control_type": null,
+          "name": "File",
+          "automation_id": null
+        }
+      ],
+      "depth": 3
+    }
+  }
+}

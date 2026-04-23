@@ -72,6 +72,7 @@ impl InputBackend for InputBackendWindows {
 
 /// Gets the current cursor position using WinAPI GetCursorPos
 /// Returns (x, y) coordinates relative to the primary monitor
+/// This function does NOT use spawn_blocking because it returns primitive (i32, i32) types
 pub fn get_cursor_position() -> Result<(i32, i32), InputError> {
     let mut point = POINT { x: 0, y: 0 };
 

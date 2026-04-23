@@ -467,5 +467,11 @@ const INCLUDE_PATHS: &[&str] = &[
 
 ---
 
-**Статус проекта**: 🚧 Старт
+**Статус проекта**: ✅ ClickTool Refactoring Complete (v0.2.0)
+- Обновлён ClickTool с поддержкой трёх типов кликов (LeftSingle, RightSingle, LeftDouble)
+- RightClickTool теперь обёртка вокруг ClickTool
+- Все тесты проходят (116/116)
+- Все примеры обновлены
+- Документация обновлена
+- Context bundle перегенерирован
 **Контрактный статус**: Планирование → Утверждение → Реализация

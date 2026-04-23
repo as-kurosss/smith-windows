@@ -99,15 +99,19 @@ impl MockInspectBackend {
     }
 
     /// Gets a mutable reference to the state
-    pub fn get_state(&self) -> std::sync::MutexGuard<'_, MockInspectState> {
-        self.state.lock().expect("Mock state mutex poisoned")
+    pub fn get_state(&self) -> Result<std::sync::MutexGuard<'_, MockInspectState>, InspectError> {
+        self.state.lock().map_err(|e| {
+            tracing::error!("State mutex poisoned: {}", e);
+            InspectError::ComError("State mutex poisoned".into())
+        })
     }
 
     /// Resets the backend state
-    pub fn reset(&self) {
-        let mut state = self.get_state();
+    pub fn reset(&self) -> Result<(), InspectError> {
+        let mut state = self.get_state()?;
         state.call_count = 0;
         state.last_error = None;
+        Ok(())
     }
 }
 
@@ -118,7 +122,7 @@ impl InspectBackend for MockInspectBackend {
         _head_window: &uiautomation::UIElement,
         _element: &uiautomation::UIElement,
     ) -> Result<String, InspectError> {
-        let mut state = self.get_state();
+        let mut state = self.get_state()?;
         state.call_count += 1;
 
         if state.should_succeed {
@@ -175,7 +179,7 @@ pub fn get_inspect_path(
     Err(InspectError::InvalidSelector)
 }
 
-/// Performs an inspect operation with config validation and timeout handling
+/// Performs an inspect operation with config validation and cancellation check
 pub async fn inspect_with_config(
     head_window: &uiautomation::UIElement,
     element: &uiautomation::UIElement,
@@ -184,33 +188,23 @@ pub async fn inspect_with_config(
     // Validate config BEFORE any backend calls
     validate_inspect_config(config)?;
 
-    tracing::info!(
-        "Starting inspect operation with timeout: {:?}",
-        config.timeout
-    );
+    tracing::info!("Starting inspect operation");
+
+    if config.cancellation.is_cancelled() {
+        tracing::error!("Inspect operation cancelled before completion");
+        return Err(InspectError::Cancelled);
+    }
 
     let backend = crate::runtime::backends::windows::inspect::InspectBackendWindows::new();
 
-    // Wrap with timeout and cancellation
-    let inspect_future = async move { backend.inspect_path(head_window, element).await };
+    let result = backend.inspect_path(head_window, element).await;
 
-    // Wrap the future with timeout
-    let result = tokio::time::timeout(config.timeout, inspect_future).await;
-
-    match result {
-        Ok(inspect_result) => {
-            // Check for cancellation
-            if config.cancellation.is_cancelled() {
-                tracing::error!("Inspect operation cancelled during completion");
-                return Err(InspectError::Cancelled);
-            }
-            inspect_result
-        }
-        Err(_) => {
-            tracing::error!("Inspect operation timed out after {:?}", config.timeout);
-            Err(InspectError::Timeout)
-        }
+    if config.cancellation.is_cancelled() {
+        tracing::error!("Inspect operation cancelled during completion");
+        return Err(InspectError::Cancelled);
     }
+
+    result
 }
 
 #[cfg(test)]
@@ -259,7 +253,7 @@ mod tests {
     #[test]
     fn test_mock_backend_creation() {
         let backend = MockInspectBackend::new();
-        assert_eq!(backend.get_state().call_count, 0);
+        assert_eq!(backend.get_state().unwrap().call_count, 0);
     }
 
     #[test]
@@ -270,13 +264,13 @@ mod tests {
             ..Default::default()
         };
         let backend = MockInspectBackend::with_state(state);
-        assert_eq!(backend.get_state().should_succeed, true);
+        assert!(backend.get_state().unwrap().should_succeed);
     }
 
     #[test]
     fn test_mock_backend_reset() {
         let backend = MockInspectBackend::new();
-        backend.reset();
-        assert_eq!(backend.get_state().call_count, 0);
+        backend.reset().unwrap();
+        assert_eq!(backend.get_state().unwrap().call_count, 0);
     }
 }

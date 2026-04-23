@@ -14,12 +14,24 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 async-trait = "0.1"
 uiautomation = "0.24.4"
+arboard = "3.4"
 trybuild = "1.0.116"
 regex = "1.12.3"
 clipboard = "0.5"
-windows = { version = "0.62.0", features = ["Win32_UI_WindowsAndMessaging", "Win32_UI_Accessibility"] }
+uuid = { version = "1", features = ["v4"] }
 
 [target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.0", features = [
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Accessibility",
+    "Win32_Graphics_Gdi",
+    "Win32_Foundation",
+    "Win32_System_Memory"
+] }
+
+[dev-dependencies]
+serial_test = "3"
+tempfile = "3"
 
 [[bin]]
 name = "bundle_context"
@@ -48,3 +60,15 @@ path = "examples/inspect_interactive.rs"
 [[example]]
 name = "demo"
 path = "examples/demo.rs"
+
+[[example]]
+name = "selector_storage_and_click"
+path = "examples/selector_storage_and_click.rs"
+
+[[example]]
+name = "interactive_selector_capture"
+path = "examples/interactive_selector_capture.rs"
+
+[[example]]
+name = "right_click_example"
+path = "examples/right_click_example.rs"

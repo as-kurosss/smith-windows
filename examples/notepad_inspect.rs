@@ -77,7 +77,7 @@ async fn example_mock_backend() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test 1: Success scenario
     {
-        let mut state = backend.get_state();
+        let mut state = backend.get_state().unwrap();
         state.should_succeed = true;
         state.path = "Window->Button->CheckBox{Name}".to_string();
         state.call_count = 0;
@@ -88,7 +88,7 @@ async fn example_mock_backend() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test 2: Failure scenario
     {
-        let mut state = backend.get_state();
+        let mut state = backend.get_state().unwrap();
         state.should_succeed = false;
         state.last_error = Some(smith_windows::core::inspect::InspectError::ElementNotEnabled);
     }

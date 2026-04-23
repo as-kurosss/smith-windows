@@ -11,9 +11,7 @@
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 
-use smith_windows::core::click::{
-    validate_click_config, ClickConfig, ClickError, MockClickBackend,
-};
+use smith_windows::core::click::{ClickConfig, ClickError, ClickType, MockClickBackend};
 use smith_windows::runtime::backends::windows::click::ClickBackendWindows;
 
 #[tokio::main]
@@ -25,7 +23,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("=== ClickTool Example - Starting ===");
 
-    // Example 1: Configuration validation
+    // Example 1: Configuration validation with different click types
     example_configuration().await?;
 
     // Example 2: Using MockClickBackend for testing scenarios
@@ -39,36 +37,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Example: Configuration validation
+/// Example: Configuration validation with different click types
 async fn example_configuration() -> Result<(), Box<dyn std::error::Error>> {
-    println!("\n--- Example: Configuration validation ---");
+    println!("\n--- Example: Configuration validation with different click types ---");
 
     let cancellation = tokio_util::sync::CancellationToken::new();
 
-    // Valid configuration
-    let config = ClickConfig {
+    // Valid configuration for LeftSingle click
+    let config_left_single = ClickConfig {
+        click_type: ClickType::LeftSingle,
+        timeout: Duration::from_secs(5),
+        cancellation: cancellation.clone(),
+    };
+
+    println!("✓ LeftSingle click config created successfully");
+
+    // Valid configuration for RightSingle click
+    let config_right_single = ClickConfig {
+        click_type: ClickType::RightSingle,
+        timeout: Duration::from_secs(5),
+        cancellation: cancellation.clone(),
+    };
+
+    println!("✓ RightSingle click config created successfully");
+
+    // Valid configuration for LeftDouble click
+    let config_left_double = ClickConfig {
+        click_type: ClickType::LeftDouble,
         timeout: Duration::from_secs(5),
         cancellation,
     };
 
-    match validate_click_config(&config) {
-        Ok(()) => println!("✓ Valid configuration accepted"),
-        Err(e) => println!("✗ Configuration error: {}", e),
-    }
+    println!("✓ LeftDouble click config created successfully");
 
-    // Invalid configuration - zero timeout
-    let config_invalid = ClickConfig {
-        timeout: Duration::ZERO,
-        cancellation: tokio_util::sync::CancellationToken::new(),
-    };
-
-    match validate_click_config(&config_invalid) {
-        Ok(()) => println!("✗ Zero timeout should be rejected"),
-        Err(ClickError::InvalidConfig(msg)) => {
-            println!("✓ Zero timeout correctly rejected: {}", msg)
-        }
-        Err(e) => println!("✗ Unexpected error: {}", e),
-    }
+    // Note: validate_click_config is no longer exported
+    // Validation happens internally in click_with_config
 
     Ok(())
 }
@@ -81,7 +84,7 @@ async fn example_mock_backend() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test 1: Success scenario
     {
-        let mut state = backend.get_state();
+        let mut state = backend.get_state().unwrap();
         state.should_succeed = true;
         state.call_count = 0;
     }
@@ -91,12 +94,12 @@ async fn example_mock_backend() -> Result<(), Box<dyn std::error::Error>> {
     // Note: Mock backend doesn't need real UI elements
     // It's useful for unit testing without UI dependencies
 
-    backend.reset();
+    backend.reset().unwrap();
     println!("Mock backend reset");
 
     // Test 2: Failure scenario
     {
-        let mut state = backend.get_state();
+        let mut state = backend.get_state().unwrap();
         state.should_succeed = false;
         state.last_error = Some(ClickError::ElementNotEnabled);
     }
@@ -116,17 +119,13 @@ async fn example_with_real_click() -> Result<(), Box<dyn std::error::Error>> {
 
     let cancellation = tokio_util::sync::CancellationToken::new();
     let config = ClickConfig {
+        click_type: ClickType::LeftSingle,
         timeout: Duration::from_secs(10),
         cancellation,
     };
 
-    match validate_click_config(&config) {
-        Ok(()) => println!("Configuration is valid"),
-        Err(e) => {
-            println!("Configuration error: {}", e);
-            return Err(e.into());
-        }
-    }
+    // Note: validate_click_config is no longer exported
+    // Validation happens internally in click_with_config
 
     println!("Starting Windows Calculator...");
     let ui_automation = uiautomation::UIAutomation::new().map_err(|e| {
@@ -189,7 +188,7 @@ async fn example_with_real_click() -> Result<(), Box<dyn std::error::Error>> {
 
     let backend = ClickBackendWindows::new();
 
-    match backend.click(first_button).await {
+    match backend.click(first_button, ClickType::LeftSingle).await {
         Ok(()) => {
             println!("Click successful! Check Calculator for result");
         }

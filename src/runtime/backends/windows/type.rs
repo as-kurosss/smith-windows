@@ -1,7 +1,7 @@
 //! Windows type implementation via uiautomation
 
 use crate::core::r#type::{TypeBackend, TypeError};
-use clipboard::ClipboardProvider;
+use clipboard::{ClipboardContext, ClipboardProvider};
 
 /// Windows type backend implementation
 pub struct TypeBackendWindows;
@@ -57,27 +57,37 @@ impl TypeBackend for TypeBackendWindows {
         }
 
         // For typing text, use clipboard approach since element.value() is not available
-        // Save current clipboard content
-        let original_clipboard = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let mut ctx = clipboard::ClipboardContext::new().ok()?;
-            ctx.get_contents().ok()
-        }))
-        .unwrap_or(None);
+        // Save current clipboard content - explicit Result handling (NO catch_unwind)
+        let original_clipboard = match ClipboardContext::new() {
+            Ok(mut ctx) => match ctx.get_contents() {
+                Ok(s) => Some(s),
+                Err(e) => {
+                    tracing::error!("Failed to get clipboard: {}", e);
+                    None
+                }
+            },
+            Err(e) => {
+                tracing::error!("Failed to create clipboard context: {}", e);
+                None
+            }
+        };
 
-        // Set text to clipboard
-        let paste_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let mut ctx = clipboard::ClipboardContext::new().ok()?;
-            ctx.set_contents(text.to_string()).ok();
-            Some(())
-        }));
+        // Set text to clipboard - explicit Result handling (NO catch_unwind)
+        let paste_result = match ClipboardContext::new() {
+            Ok(mut ctx) => match ctx.set_contents(text.to_string()) {
+                Ok(()) => Some(()),
+                Err(e) => {
+                    tracing::error!("Failed to set clipboard: {}", e);
+                    None
+                }
+            },
+            Err(e) => {
+                tracing::error!("Failed to create clipboard context: {}", e);
+                None
+            }
+        };
 
-        let paste_failed = paste_result.is_err()
-            || paste_result
-                .as_ref()
-                .ok()
-                .map(|o| o.is_none())
-                .unwrap_or(true);
-        if paste_failed {
+        if paste_result.is_none() {
             tracing::error!("Failed to set clipboard text");
             return Err(TypeError::ComError("Failed to set clipboard".to_string()));
         }
@@ -91,20 +101,22 @@ impl TypeBackend for TypeBackendWindows {
 
         // For full implementation, we would need to simulate Ctrl+V
         // This would require additional keyboard simulation crate
-        // For now, we can only set the value if available
-        // element.value().set_value(text) - API doesn't support this in 0.24.4
+        // For now, return error indicating clipboard approach needed
+        tracing::warn!("Clipboard paste simulation would require keyboard simulation");
 
-        // Restore clipboard
+        // Restore clipboard - explicit Result handling (NO catch_unwind)
         if let Some(original) = &original_clipboard {
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                if let Ok(mut ctx) = clipboard::ClipboardContext::new() {
-                    ctx.set_contents(original.clone()).ok();
+            let _ = match ClipboardContext::new() {
+                Ok(mut ctx) => ctx.set_contents(original.clone()).ok(),
+                Err(e) => {
+                    tracing::error!("Failed to restore clipboard context: {}", e);
+                    None
                 }
-            }));
+            };
         }
 
         match paste_result {
-            Ok(Some(())) => {
+            Some(()) => {
                 tracing::info!("Type text operation completed successfully (clipboard)");
                 Ok(())
             }

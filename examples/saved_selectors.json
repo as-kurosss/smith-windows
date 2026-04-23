@@ -1,0 +1,17 @@
+{
+  "steps": [
+    {
+      "classname": "Notepad",
+      "control_type": null,
+      "name": "Untitled - Notepad",
+      "automation_id": null
+    },
+    {
+      "classname": "Edit",
+      "control_type": null,
+      "name": "",
+      "automation_id": "12345"
+    }
+  ],
+  "depth": 2
+}

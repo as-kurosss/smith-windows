@@ -97,15 +97,19 @@ impl MockTypeBackend {
     }
 
     /// Gets a mutable reference to the state
-    pub fn get_state(&self) -> std::sync::MutexGuard<'_, MockTypeState> {
-        self.state.lock().expect("Mock state mutex poisoned")
+    pub fn get_state(&self) -> Result<std::sync::MutexGuard<'_, MockTypeState>, TypeError> {
+        self.state.lock().map_err(|e| {
+            tracing::error!("State mutex poisoned: {}", e);
+            TypeError::ComError("State mutex poisoned".into())
+        })
     }
 
     /// Resets the backend state
-    pub fn reset(&self) {
-        let mut state = self.get_state();
+    pub fn reset(&self) -> Result<(), TypeError> {
+        let mut state = self.get_state()?;
         state.call_count = 0;
         state.last_error = None;
+        Ok(())
     }
 }
 
@@ -116,7 +120,7 @@ impl TypeBackend for MockTypeBackend {
         _element: &uiautomation::UIElement,
         _text: &str,
     ) -> Result<(), TypeError> {
-        let mut state = self.get_state();
+        let mut state = self.get_state()?;
         state.call_count += 1;
 
         if state.should_succeed {
@@ -134,6 +138,8 @@ impl TypeBackend for MockTypeBackend {
 }
 
 /// Performs a type text operation with config validation and timeout handling
+/// Note: UIElement is !Send, so we cannot use spawn_blocking or async move.
+/// The backend call must run on the same thread that created the UIAutomation instance.
 pub async fn type_text_with_config(
     element: &uiautomation::UIElement,
     text: &str,
@@ -146,41 +152,26 @@ pub async fn type_text_with_config(
         return Err(TypeError::InvalidConfig("text cannot be empty".to_string()));
     }
 
-    tracing::info!(
-        "Starting type text operation with timeout: {:?}, text: {}",
-        config.timeout,
-        text
-    );
+    tracing::info!("Starting type text operation, text length: {}", text.len());
 
     let backend = TypeBackendWindows::new();
 
-    // Note: We can't use async move here because UIElement is not Send
-    // So we just call the backend directly and handle timeout/cancellation
-    let start_time = std::time::Instant::now();
-
-    loop {
-        // Check for timeout
-        if start_time.elapsed() >= config.timeout {
-            tracing::error!("Type text operation timed out after {:?}", config.timeout);
-            return Err(TypeError::Timeout);
-        }
-
-        // Check for cancellation
-        if config.cancellation.is_cancelled() {
-            tracing::error!("Type text operation cancelled during completion");
-            return Err(TypeError::Cancelled);
-        }
-
-        // Try to type text
-        match backend.type_text(element, text).await {
-            Ok(()) => return Ok(()),
-            Err(TypeError::Timeout) => {
-                // Continue waiting and retry
-                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-            }
-            Err(e) => return Err(e),
-        }
+    // Direct call to backend - UIAutomation operations are synchronous and non-blocking
+    // Check cancellation before call
+    if config.cancellation.is_cancelled() {
+        tracing::error!("Type text operation cancelled before completion");
+        return Err(TypeError::Cancelled);
     }
+
+    let result = backend.type_text(element, text).await;
+
+    // Check cancellation after call
+    if config.cancellation.is_cancelled() {
+        tracing::error!("Type text operation cancelled during completion");
+        return Err(TypeError::Cancelled);
+    }
+
+    result
 }
 
 #[cfg(test)]
@@ -229,13 +220,13 @@ mod tests {
     #[test]
     fn test_mock_backend_creation() {
         let backend = MockTypeBackend::new();
-        assert_eq!(backend.get_state().call_count, 0);
+        assert_eq!(backend.get_state().unwrap().call_count, 0);
     }
 
     #[test]
     fn test_mock_backend_reset() {
         let backend = MockTypeBackend::new();
-        backend.reset();
-        assert_eq!(backend.get_state().call_count, 0);
+        backend.reset().unwrap();
+        assert_eq!(backend.get_state().unwrap().call_count, 0);
     }
 }

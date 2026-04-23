@@ -3,197 +3,274 @@
 **Source**: [docs.rs](https://docs.rs/uiautomation/0.24.4/uiautomation/)
 
 ## 📚 Overview
-Rust wrapper around Windows UI Automation API. Provides safe abstractions for UI element interaction. Built on top of `windows` crate, wraps COM interfaces `IUIAutomation`, `IUIAutomationElement`, `IUIAutomationTreeWalker`.
 
-**Key features:**
-- High-level abstractions for UI element manipulation
-- Pattern-based interaction (Invoke, Value, Text, etc.)
-- Support for caching to optimize performance
-- Fluent matcher API for element search
-- Full control over UI Automation tree navigation
+Rust wrapper around Windows UI Automation API. Provides safe abstractions for UI element interaction through COM interfaces. The crate is built on top of the `windows` crate and requires Windows 10/11.
+
+**Key characteristics for smith-windows:**
+- All types (`UIAutomation`, `UIElement`, `UITreeWalker`) are **`!Send` and `!Sync`**
+- Cannot use `spawn_blocking` - all calls must run on the same thread (STA)
+- UIA methods are **synchronous** - they don't block the async runtime
+- All async operations in smith-windows must use `#[async_trait::async_trait(?Send)]`
 
 ## 🔑 Key Types
 
 | Type | Description |
 |------|-------------|
-| `UIAutomation` | Main entry point for UI Automation. Creates automation instance and provides methods to get root element, elements by point/handle/focus. |
-| `UIElement` | Represents a single UI element (window, button, edit, etc.). Core building block for all UI operations. |
-| `UITreeWalker` | Provides navigation methods (parent, children, siblings) through UI Automation tree. |
-| `UIMatcher` | Fluent API for building search conditions and finding elements. Supports timeout, depth limits, custom filters. |
-| `UICondition` | Condition for filtering elements (AND, OR, NOT, property-based conditions). |
-| `UIAutomation::new()` | Creates automation instance with automatic COM initialization (COINIT_MULTITHREADED). |
-| `UIAutomation::new_direct()` | Creates instance without COM initialization (requires manual `CoInitializeEx`). |
+| `UIAutomation` | Main entry point for UIA - creates matchers, tree walkers, compares elements |
+| `UIElement` | Represents a UI element (window, button, text) - all properties and methods |
+| `UITreeWalker` | Navigates the element tree (parent, children, siblings) |
+| `UIMatcher` | Configuration for element search (name, control_type, class, automation_id) |
+| `ControlType` | Enum of UI control types (Button, Edit, Window, Text, etc.) |
+| `SearchScope` | Defines search范围 (Children, Descendants, Element, Subtree, etc.) |
+| `Error`, `Result` | Error types from UIA operations |
 
 ## 🔧 Key Methods
 
-### UIAutomation Methods
-
-- `UIAutomation::new() -> Result<UIAutomation>` — create automation instance with COM init
-- `UIAutomation::get_root_element(&self) -> Result<UIElement>` — get desktop/root element
-- `UIAutomation::element_from_point(&self, point: POINT) -> Result<UIElement>` — get element at screen coordinates
-- `UIAutomation::get_focused_element(&self) -> Result<UIElement>` — get element with keyboard focus
-- `UIAutomation::element_from_handle(&self, hwnd: HANDLE) -> Result<UIElement>` — get element by window handle
-- `UIAutomation::create_matcher(&self) -> UIMatcher` — create fluent matcher for element search
-
 ### UIElement Methods
 
-**Navigation:**
-- `UIElement::find_first(scope: TreeScope, condition: &UICondition) -> Result<UIElement>` — find first matching element
-- `UIElement::find_all(scope: TreeScope, condition: &UICondition) -> Result<Vec<UIElement>>` — find all matching elements
-- `UITreeWalker::get_parent(element: &UIElement) -> Result<UIElement>` — get parent element
-- `UITreeWalker::get_first_child(element: &UIElement) -> Result<UIElement>` — get first child
-- `UITreeWalker::get_next_sibling(element: &UIElement) -> Result<UIElement>` — get next sibling
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get_control_type()` | `Result<ControlType>` | Get element's control type |
+| `get_name()` | `Result<String>` | Get element's name/title |
+| `get_classname()` | `Result<String>` | Get element's window class name |
+| `get_automation_id()` | `Result<String>` | Get element's automation ID |
+| `is_enabled()` | `Result<bool>` | Check if element is enabled |
+| `is_offscreen()` | `Result<bool>` | Check if element is offscreen |
+| `get_process_id()` | `Result<u32>` | Get process ID owning this element |
+| `get_parent()` | `Result<UIElement>` | Get parent element |
+| `click()` | `Result<()>` | Click the element |
+| `set_focus()` | `Result<()>` | Set focus to the element |
+| `get_runtime_id()` | `Result<Vec<i32>>` | Get unique runtime ID |
 
-**Properties:**
-- `UIElement::get_name() -> Result<String>` — element name
-- `UIElement::get_automation_id() -> Result<String>` — unique automation ID
-- `UIElement::get_classname() -> Result<String>` — window class name
-- `UIElement::get_control_type() -> Result<ControlType>` — element type
-- `UIElement::is_enabled() -> Result<bool>` — is element enabled
-- `UIElement::is_offscreen() -> Result<bool>` — is element hidden
-- `UIElement::has_keyboard_focus() -> Result<bool>` — has keyboard focus
-- `UIElement::get_bounding_rectangle() -> Result<Rect>` — element bounding rectangle
+### UIAutomation Methods
 
-**Interaction:**
-- `UIElement::click() -> Result<()>` — left click
-- `UIElement::double_click() -> Result<()>` — double click
-- `UIElement::right_click() -> Result<()>` — right click
-- `UIElement::set_focus() -> Result<()>` — set keyboard focus
-- `UIElement::send_keys(keys: &str, interval: u64) -> Result<()>` — send keystrokes
-- `UIElement::send_text(text: &str, interval: u64) -> Result<()>` — send text
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `new()` | `Result<UIAutomation>` | Create new UIAutomation instance |
+| `get_root_element()` | `Result<UIElement>` | Get desktop root element |
+| `element_from_point(Point)` | `Result<UIElement>` | Get element at screen coordinates |
+| `compare_elements(&UIElement, &UIElement)` | `Result<bool>` | Compare two elements for equality |
+| `create_matcher()` | `MatcherBuilder` | Create matcher for element search |
+| `create_tree_walker()` | `Result<UITreeWalker>` | Create tree walker for navigation |
 
-**Patterns:**
-- `UIElement::get_pattern<T: UiPattern>(&self) -> Result<T>` — get control pattern (InvokePattern, ValuePattern, TextPattern, etc.)
+### MatcherBuilder Methods (via `create_matcher()`)
 
-### Control Patterns
+| Method | Description |
+|--------|-------------|
+| `from(UIElement)` | Set search root element |
+| `control_type(ControlType)` | Filter by control type |
+| `name(&str)` | Filter by element name |
+| `class(&str)` | Filter by window class |
+| `automation_id(&str)` | Filter by automation ID |
+| `enabled(bool)` | Filter by enabled state |
+| `offscreen(bool)` | Filter by offscreen state |
+| `framework_id(&str)` | Filter by framework ID |
+| `timeout(u32)` | Set search timeout in ms |
+| `find_first()` | `Result<UIElement>` - Find first matching element |
+| `find_all()` | `Result<Vec<UIElement>>` - Find all matching elements |
+| `find_first_opt()` | `Result<Option<UIElement>>` - Return None if not found |
 
-| Pattern | Use Case |
-|---------|----------|
-| `InvokePattern` | Button clicks, menu items |
-| `ValuePattern` | Text input fields |
-| `TextPattern` | Rich text editing |
-| `RangeValuePattern` | Sliders, spinners |
-| `TogglePattern` | Checkboxes, toggle buttons |
-| `WindowPattern` | Window operations (minimize, maximize, close) |
-| `SelectionPattern` | List boxes, combo boxes |
+### UITreeWalker Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get_parent(&UIElement)` | `Result<UIElement>` | Get parent element |
+| `get_first_child(&UIElement)` | `Result<UIElement>` | Get first child |
+| `get_last_child(&UIElement)` | `Result<UIElement>` | Get last child |
+| `get_next_sibling(&UIElement)` | `Result<UIElement>` | Get next sibling |
+| `get_previous_sibling(&UIElement)` | `Result<UIElement>` | Get previous sibling |
 
 ## ⚠️ COM Safety Rules (for smith-windows)
 
 **Project-Specific Requirements:**
-- **DO NOT** use `tokio::task::spawn_blocking` for COM calls — `uiautomation` methods are synchronous and don't block async runtime
-- **DO NOT** call `CoInitializeEx`, `CoUninitialize` directly — `UIAutomation::new()` handles COM initialization automatically
-- **ALL** calls must be in STA (Single-Threaded Apartment) threads
-- **NEVER** pass `UIElement` between threads (it is `!Send` and `!Sync`)
+- **ALWAYS** use `#[async_trait::async_trait(?Send)]` for all traits using UIA types
+- **NEVER** use `tokio::task::spawn_blocking` - UIElement is `!Send` and will fail to compile
+- **ALL** UIA calls must run on the same thread that created UIAutomation (STA affinity)
+- **DO NOT** pass UIElement across async boundaries with `async move` - use references instead
+- **ALL** error handling must be explicit via `match` or `?` operator
 
 **Rationale:**
-The `uiautomation` crate is built on top of the `windows` crate which uses COM. COM requires proper initialization and thread affinity. The `uiautomation` crate manages COM initialization internally when using `UIAutomation::new()`, which wraps `CoInitializeEx(nullptr, COINIT_MULTITHREADED)`. 
+The `uiautomation` crate wraps Windows COM interfaces. COM requires proper apartment threading - UIAutomation creates elements with STA affinity, and those elements cannot be moved between threads. Attempting to use `spawn_blocking` or `Send` futures with UIA types will result in compilation errors.
 
-For `smith-windows`, the recommended pattern is:
-- Use `UIAutomation::new()` which initializes COM automatically
-- Call `uiautomation` methods directly (they are synchronous and don't block the async runtime)
-- Avoid `spawn_blocking` unless doing CPU-intensive work with the `UIElement` returned (which is impossible due to `!Send`)
+## 🎯 Usage Pattern for WaitTool
 
-**Critical:**
-- `UIElement` is **NOT Send** (`!Send`) — it cannot be sent between threads
-- `UIElement` is **NOT Sync** (`!Sync`) — it cannot be shared between threads
-- `UITreeWalker` is also `!Send`/`!Sync`
-- `UIAutomation` is also `!Send`/`!Sync`
-- All these types must be used exclusively within the same thread that initialized COM
+### Finding Elements - Option vs Result
 
-## 🎯 Usage Pattern
+The `uiautomation` crate has **TWO patterns** for element search:
 
-### Getting Root Element
+#### Pattern 1: MatcherBuilder (Recommended for smith-windows)
 ```rust
-use uiautomation::core::UIAutomation;
-
-let automation = UIAutomation::new()?;
-let root = automation.get_root_element()?;
-```
-
-### Getting Element at Coordinates
-```rust
-use uiautomation::core::UIAutomation;
-use windows::Win32::System::Threading::GetCursorPos; // or your own cursor pos function
+use uiautomation::UIAutomation;
 
 let automation = UIAutomation::new()?;
 
-// Get cursor position (via WinAPI in spawn_blocking)
-let point = get_cursor_pos()?;  // POINT { x, y }
-
-// Get element at that position
-let element = automation.element_from_point(point)?;
-```
-
-### Getting Element Under Cursor
-> **Note**: There is NO direct `element_from_cursor()` method. Use `element_from_point` with cursor coordinates.
-
-```rust
-// Step 1: Get cursor position (via WinAPI)
-let pos = get_cursor_pos()?;  // POINT
-
-// Step 2: Get element at that point
-let automation = UIAutomation::new()?;
-let element = automation.element_from_point(pos)?;
-```
-
-### Using UIMatcher (Recommended for smith-windows)
-```rust
-use uiautomation::core::{UIAutomation, ControlType};
-
-let automation = UIAutomation::new()?;
-
-// Find first button named "OK"
-let ok_button = automation
+// Returns Result<UIElement> - Err if not found
+let element = automation
     .create_matcher()
-    .name("OK")
+    .from(root)
     .control_type(ControlType::Button)
-    .timeout(3000)  // 3 seconds
-    .find_first()?;
+    .name("OK")
+    .timeout(2000)  // 2 second timeout
+    .find_first()?; // Returns Result<UIElement, Error>
 
-ok_button.click()?;
-
-// Find all text fields in Notepad
-let notepad = automation
+// Alternative: Returns Result<Option<UIElement>>
+let maybe_element = automation
     .create_matcher()
-    .classname("Notepad")
-    .find_first()?;
+    .from(root)
+    .automation_id("cancel_button")
+    .find_first_opt()?; // Returns Result<Option<UIElement>, Error>
 
-let text_fields = automation
-    .create_matcher()
-    .from(notepad)
-    .control_type(ControlType::Edit)
-    .find_all()?;
+match maybe_element {
+    Some(el) => println!("Found: {}", el.get_name()?), // Handle found element
+    None => println!("Element not found"),              // Handle not found
+}
 ```
 
-### Using Control Patterns
+#### Pattern 2: Direct UIElement Search (Legacy)
 ```rust
-use uiautomation::patterns::{ValuePattern, InvokePattern};
-use uiautomation::core::UIAutomation;
+use uiautomation::{UIAutomation, SearchScope, UIMatcher, ControlType};
 
 let automation = UIAutomation::new()?;
 let root = automation.get_root_element()?;
 
-// Find edit control and set value
-let edit = root.find_first(
-    TreeScope::Subtree,
-    &UICondition::new().control_type(ControlType::Edit)?
-)?;
+// Create matcher with UIMatcher
+let matcher = UIMatcher::new()
+    .name("Button")?
+    .control_type(ControlType::Button)?;
 
-let value: ValuePattern = edit.get_pattern()?;
-value.set_value("Hello, world!")?;
-
-// Find button and invoke
-let button = root.find_first(
-    TreeScope::Subtree,
-    &UICondition::new().control_type(ControlType::Button)?
-)?;
-
-let invoke: InvokePattern = button.get_pattern()?;
-invoke.invoke()?;
+// Returns Result<UIElement> - Err if not found
+let element = root.find_first(SearchScope::Descendants, &matcher)?;
 ```
+
+### Check if Element Exists (Pattern for WaitTool)
+
+**Method 1: Using `find_first_opt()` (RECOMMENDED)**
+```rust
+use uiautomation::UIAutomation;
+
+async fn element_exists(
+    automation: &UIAutomation,
+    root: &uiautomation::UIElement,
+    automation_id: &str,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    // Returns Result<Option<UIElement>>
+    let maybe_element = automation
+        .create_matcher()
+        .from(root.clone())
+        .automation_id(automation_id)
+        .timeout(1000)  // 1 second timeout for each check
+        .find_first_opt()?;  // Returns Option<UIElement>
+    
+    Ok(maybe_element.is_some())
+}
+```
+
+**Method 2: Try/Catch with find_first()**
+```rust
+use uiautomation::UIAutomation;
+
+async fn element_exists_catch(
+    automation: &UIAutomation,
+    root: &uiautomation::UIElement,
+    automation_id: &str,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let result = automation
+        .create_matcher()
+        .from(root.clone())
+        .automation_id(automation_id)
+        .timeout(1000)
+        .find_first();
+    
+    match result {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false),  // Treat any error as "not found"
+    }
+}
+```
+
+**Method 3: Check via Element Properties (for known elements)**
+```rust
+// If you already have a UIElement reference, check validity:
+let is_enabled = element.is_enabled().unwrap_or(false);
+let is_offscreen = element.is_offscreen().unwrap_or(true);
+
+// If these fail, the element may be invalid/disposed
+```
+
+### Complete WaitTool Implementation Pattern
+
+```rust
+use std::time::{Duration, Instant};
+use uiautomation::UIAutomation;
+
+#[async_trait::async_trait(?Send)]
+pub trait WaitBackend {
+    async fn wait_for_element(
+        &self,
+        automation: &UIAutomation,
+        root: &uiautomation::UIElement,
+        automation_id: &str,
+        timeout: Duration,
+        interval: Duration,
+    ) -> Result<bool, WaitError>;
+}
+
+#[async_trait::async_trait(?Send)]
+impl WaitBackend for WaitBackendWindows {
+    async fn wait_for_element(
+        &self,
+        automation: &UIAutomation,
+        root: &uiautomation::UIElement,
+        automation_id: &str,
+        timeout: Duration,
+        interval: Duration,
+    ) -> Result<bool, WaitError> {
+        let start = Instant::now();
+        
+        loop {
+            // Check timeout
+            if start.elapsed() >= timeout {
+                return Ok(false);  // Timeout reached
+            }
+            
+            // Check cancellation
+            if self.config.cancellation.is_cancelled() {
+                return Err(WaitError::Cancelled);
+            }
+            
+            // Try to find element
+            match automation
+                .create_matcher()
+                .from(root.clone())
+                .automation_id(automation_id)
+                .timeout(1000)  // 1 second per check
+                .find_first_opt()
+            {
+                Ok(Some(_element)) => return Ok(true),  // Found!
+                Ok(None) => {}  // Not found yet, continue polling
+                Err(_) => {}    // Error treating as "not found"
+            }
+            
+            // Wait before next poll
+            tokio::time::sleep(interval).await;
+        }
+    }
+}
+```
+
+### Error Handling Patterns
+
+| Method | Returns | Error When | How to Handle |
+|--------|---------|------------|----------------|
+| `find_first()` | `Result<UIElement>` | Not found, timeout, COM error | Match on `Err` to handle |
+| `find_first_opt()` | `Result<Option<UIElement>>` | COM error only | Match on `Option` to check existence |
+| `find_all()` | `Result<Vec<UIElement>>` | Not found, timeout, COM error | Check `Vec::is_empty()` |
+| `get_name()` | `Result<String>` | Element invalid, COM error | `unwrap_or_default()` or match |
+| `is_enabled()` | `Result<bool>` | Element invalid, COM error | `unwrap_or(false)` for safety |
+| `is_offscreen()` | `Result<bool>` | Element invalid, COM error | `unwrap_or(true)` for safety |
 
 ## 🔗 Additional Resources
 
 - [docs.rs API](https://docs.rs/uiautomation/0.24.4/uiautomation/)
-- [GitHub Repository](https://github.com/leexgone/uiautomation)
 - [Cargo.toml on crates.io](https://crates.io/crates/uiautomation)
+- **Source**: [leexgone/uiautomation on GitHub](https://github.com/leexgone/uiautomation)

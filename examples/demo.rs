@@ -11,9 +11,11 @@
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 
+use smith_windows::core::click::{ClickConfig, ClickType};
 use smith_windows::core::input::InputConfig;
 use smith_windows::core::inspect::{InspectBackend, InspectConfig};
 use smith_windows::core::selector::{RecordedSelector, SelectorStep};
+use smith_windows::runtime::backends::windows::click::ClickBackendWindows;
 use smith_windows::runtime::backends::windows::input::{
     get_cursor_position, get_element_under_ctrl_hotkey,
 };
@@ -156,19 +158,13 @@ async fn demo_click_element() -> Result<(), Box<dyn std::error::Error>> {
     let edit_element =
         find_control_by_type(&notepad_window, uiautomation::types::ControlType::Edit).await?;
 
-    println!("Found Edit control, clicking...");
+    println!("Found Edit control, clicking with LeftSingle click type...");
 
-    // Click the element
-    use smith_windows::core::click::ClickConfig;
-    use smith_windows::runtime::backends::windows::click::ClickBackendWindows;
-
-    let _click_config = ClickConfig {
-        timeout: Duration::from_secs(5),
-        cancellation: tokio_util::sync::CancellationToken::new(),
-    };
-
+    // Click the element with LeftSingle click type
     let click_backend = ClickBackendWindows::new();
-    click_backend.click(&edit_element).await?;
+    click_backend
+        .click(&edit_element, ClickType::LeftSingle)
+        .await?;
 
     println!("✓ Clicked successfully!");
 

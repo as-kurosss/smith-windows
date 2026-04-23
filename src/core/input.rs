@@ -113,18 +113,22 @@ impl MockInputBackend {
     }
 
     /// Gets a mutable reference to the state
-    pub fn get_state(&self) -> std::sync::MutexGuard<'_, MockInputState> {
-        self.state.lock().expect("Mock state mutex poisoned")
+    pub fn get_state(&self) -> Result<std::sync::MutexGuard<'_, MockInputState>, InputError> {
+        self.state.lock().map_err(|e| {
+            tracing::error!("State mutex poisoned: {}", e);
+            InputError::ComError("State mutex poisoned".into())
+        })
     }
 
     /// Resets the backend state
-    pub fn reset(&self) {
-        let mut state = self.get_state();
+    pub fn reset(&self) -> Result<(), InputError> {
+        let mut state = self.get_state()?;
         state.call_count = 0;
         state.last_error = None;
         state.last_x = None;
         state.last_y = None;
         state.last_key = None;
+        Ok(())
     }
 }
 
@@ -136,7 +140,7 @@ impl InputBackend for MockInputBackend {
         x: i32,
         y: i32,
     ) -> Result<uiautomation::UIElement, InputError> {
-        let mut state = self.get_state();
+        let mut state = self.get_state()?;
         state.call_count += 1;
         state.last_x = Some(x);
         state.last_y = Some(y);
@@ -163,7 +167,7 @@ impl InputBackend for MockInputBackend {
     }
 
     async fn move_mouse(&self, x: i32, y: i32) -> Result<(), InputError> {
-        let mut state = self.get_state();
+        let mut state = self.get_state()?;
         state.call_count += 1;
 
         if state.should_succeed {
@@ -182,7 +186,7 @@ impl InputBackend for MockInputBackend {
     }
 
     async fn click_key(&self, key: &str) -> Result<(), InputError> {
-        let mut state = self.get_state();
+        let mut state = self.get_state()?;
         state.call_count += 1;
 
         if state.should_succeed {
@@ -246,7 +250,7 @@ mod tests {
     #[test]
     fn test_mock_backend_creation() {
         let backend = MockInputBackend::new();
-        assert_eq!(backend.get_state().call_count, 0);
+        assert_eq!(backend.get_state().unwrap().call_count, 0);
     }
 
     #[test]
@@ -256,13 +260,13 @@ mod tests {
             ..Default::default()
         };
         let backend = MockInputBackend::with_state(state);
-        assert_eq!(backend.get_state().should_succeed, true);
+        assert!(backend.get_state().unwrap().should_succeed);
     }
 
     #[test]
     fn test_mock_backend_reset() {
         let backend = MockInputBackend::new();
-        backend.reset();
-        assert_eq!(backend.get_state().call_count, 0);
+        backend.reset().unwrap();
+        assert_eq!(backend.get_state().unwrap().call_count, 0);
     }
 }

@@ -11,9 +11,7 @@
 use std::time::Duration;
 use tracing_subscriber::EnvFilter;
 
-use smith_windows::core::click::{
-    validate_click_config, ClickConfig, ClickError, MockClickBackend,
-};
+use smith_windows::core::click::{ClickConfig, ClickError, ClickType, MockClickBackend};
 use smith_windows::runtime::backends::windows::click::ClickBackendWindows;
 
 #[tokio::main]
@@ -46,28 +44,15 @@ async fn example_configuration() -> Result<(), Box<dyn std::error::Error>> {
 
     // Valid configuration
     let config = ClickConfig {
+        click_type: ClickType::LeftSingle,
         timeout: Duration::from_secs(5),
         cancellation,
     };
 
-    match validate_click_config(&config) {
-        Ok(()) => println!("✓ Valid configuration accepted"),
-        Err(e) => println!("✗ Configuration error: {}", e),
-    }
+    println!("✓ Valid configuration created (validation happens internally)");
 
-    // Invalid configuration - zero timeout
-    let config_invalid = ClickConfig {
-        timeout: Duration::ZERO,
-        cancellation: tokio_util::sync::CancellationToken::new(),
-    };
-
-    match validate_click_config(&config_invalid) {
-        Ok(()) => println!("✗ Zero timeout should be rejected"),
-        Err(ClickError::InvalidConfig(msg)) => {
-            println!("✓ Zero timeout correctly rejected: {}", msg)
-        }
-        Err(e) => println!("✗ Unexpected error: {}", e),
-    }
+    // Note: validate_click_config is no longer exported
+    // Validation happens internally in click_with_config
 
     Ok(())
 }
@@ -80,7 +65,7 @@ async fn example_mock_backend() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test 1: Success scenario
     {
-        let mut state = backend.get_state();
+        let mut state = backend.get_state().unwrap();
         state.should_succeed = true;
         state.call_count = 0;
     }
@@ -90,12 +75,12 @@ async fn example_mock_backend() -> Result<(), Box<dyn std::error::Error>> {
     // Note: Mock backend doesn't need real UI elements
     // It's useful for unit testing without UI dependencies
 
-    backend.reset();
+    backend.reset().unwrap();
     println!("Mock backend reset");
 
     // Test 2: Failure scenario
     {
-        let mut state = backend.get_state();
+        let mut state = backend.get_state().unwrap();
         state.should_succeed = false;
         state.last_error = Some(ClickError::ElementNotEnabled);
     }
@@ -106,27 +91,17 @@ async fn example_mock_backend() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Example: Click on Notepad menu item
+/// Example: Click on Notepad menu
+#[allow(dead_code)]
 async fn example_notepad_click() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n--- Example 3: Click on Notepad menu ---");
-    println!("This example will:");
-    println!("  1. Open Notepad");
-    println!("  2. Find and click the 'File' menu item");
-    println!("  3. Close Notepad");
 
     let cancellation = tokio_util::sync::CancellationToken::new();
     let config = ClickConfig {
+        click_type: ClickType::LeftSingle,
         timeout: Duration::from_secs(10),
         cancellation,
     };
-
-    match validate_click_config(&config) {
-        Ok(()) => println!("Configuration is valid"),
-        Err(e) => {
-            println!("Configuration error: {}", e);
-            return Err(e.into());
-        }
-    }
 
     println!("\nStep 1: Opening Notepad...");
     println!("Launching notepad.exe...");
@@ -174,14 +149,10 @@ async fn example_notepad_click() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Search attempt failed: {}", e);
             }
         }
-
-        tokio::time::sleep(Duration::from_secs(1)).await;
     };
 
-    // Search for menu items - look for the menu bar first
-    println!("\nStep 3: Finding menu items in Notepad...");
-
-    // Try to find menu bar or menu items
+    // Search for menu items
+    println!("\nStep 3: Finding menu items...");
     let menu_items = ui_automation
         .create_matcher()
         .from(notepad.clone())
@@ -193,46 +164,11 @@ async fn example_notepad_click() -> Result<(), Box<dyn std::error::Error>> {
             e
         })?;
 
-    println!("Found {} menu items", menu_items.len());
-
-    if menu_items.is_empty() {
-        println!("No menu items found. Trying to find menu bar...");
-
-        // Try to find menu bar
-        let menu_bar = ui_automation
-            .create_matcher()
-            .from(notepad.clone())
-            .control_type(uiautomation::types::ControlType::MenuBar)
-            .timeout(5000)
-            .find_first()
-            .map_err(|e| {
-                println!("Failed to find menu bar: {}", e);
-                e
-            })?;
-
-        println!("✓ Found menu bar");
-
-        // Now find menu items in the menu bar using matcher
-        let items = ui_automation
-            .create_matcher()
-            .from(menu_bar)
-            .control_type(uiautomation::types::ControlType::MenuItem)
-            .timeout(3000)
-            .find_all()
-            .map_err(|e| {
-                println!("Failed to find menu items in menu bar: {}", e);
-                e
-            })?;
-
-        println!("Found {} menu items in menu bar", items.len());
-
-        if items.is_empty() {
-            println!("No menu items found in menu bar");
-            return Err("No menu items found".into());
-        }
+    if menu_items.len() > 1 {
+        println!("Menu items found as children of Notepad window");
 
         // Find "File" menu
-        let file_menu = items
+        let file_menu = menu_items
             .iter()
             .find(|item| {
                 item.get_name()
@@ -252,7 +188,7 @@ async fn example_notepad_click() -> Result<(), Box<dyn std::error::Error>> {
         println!("Clicking 'File' menu...");
         let backend = ClickBackendWindows::new();
 
-        match backend.click(&file_menu).await {
+        match backend.click(&file_menu, ClickType::LeftSingle).await {
             Ok(()) => {
                 println!("✓ Click successful! 'File' menu should be open now");
             }
@@ -286,7 +222,7 @@ async fn example_notepad_click() -> Result<(), Box<dyn std::error::Error>> {
         println!("Clicking 'File' menu...");
         let backend = ClickBackendWindows::new();
 
-        match backend.click(&file_menu).await {
+        match backend.click(&file_menu, ClickType::LeftSingle).await {
             Ok(()) => {
                 println!("✓ Click successful! 'File' menu should be open now");
             }

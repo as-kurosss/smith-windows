@@ -3,19 +3,29 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 // Список путей: можно указывать как файлы, так и папки.
-// Для папок будут рекурсивно собраны все .md файлы.
+// Для папок будут рекурсивно собраны все указанные типы файлов.
 const INCLUDE_PATHS: &[&str] = &[
     "AGENTS.md",
     "ARCHITECTURE.md",
-    "docs/crates/",                    // Crate documentation from docs.rs
-    "docs/templates/",                 // Папка: соберёт все .md внутри
-    "docs/design/click-tool/",         // Папка с модуля ClickTool
-    "docs/design/type-tool/",          // Папка с модуля TypeTool
-    "docs/design/inspect-tool/",       // Папка с модуля InspectTool
-    "docs/design/automation-session/", // Папка модуля AutomationSession
-    "docs/adr/",                       // Папка ADR
-    "README.md",                       // Основной README с limitations
-    "CHANGELOG.md",                    // CHANGELOG с историей изменений
+    "docs/crates/",                     // Crate documentation from docs.rs
+    "docs/templates/",                  // Папка: собёрёт все .md внутри
+    "docs/design/click-tool/",          // Папка с модуля ClickTool
+    "docs/design/inspect-tool/",        // Папка с модуля InspectTool
+    "docs/design/screenshot-tool/",     // Папка с модуля ScreenshotTool
+    "docs/design/automation-session/",  // Папка модуля AutomationSession
+    "docs/design/selector-storage/",    // Папка модуля SelectorStorage
+    "docs/design/read-tool/",           // Папка модуля ReadTool
+    "docs/design/toggle-tool/",         // Папка модуля ToggleTool (NEW)
+    "docs/design/right-click-tool/",    // Папка модуля RightClickTool
+    "docs/design/scroll-tool/",         // Папка модуля ScrollTool
+    "docs/design/focus-tool/",          // Папка модуля FocusTool (NEW)
+    "docs/design/window-control-tool/", // Папка модуля WindowControlTool (NEW)
+    "docs/design/clipboard-tool/",      // Папка модуля ClipboardTool (NEW)
+    "docs/adr/",                        // Папка ADR
+    "README.md",                        // Основной README с limitations
+    "CHANGELOG.md",                     // CHANGELOG с историей изменений
+    ".qwen/agents/",                    // Конфигурация ИИ-агентов (.md файлы)
+    "src/",                             // Исходный код Rust (.rs файлы)
 ];
 
 fn main() {
@@ -38,7 +48,7 @@ fn main() {
 
         if path.is_dir() {
             // Рекурсивная обработка папки
-            match collect_markdown_files(path) {
+            match collect_files(path) {
                 Ok(files) => {
                     // Сохраняем количество до того, как файлы будут обработаны
                     let count = files.len();
@@ -97,8 +107,9 @@ fn main() {
     }
 }
 
-/// Рекурсивно собирает все .md файлы из директории
-fn collect_markdown_files(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
+/// Рекурсивно собирает все указанные файлы из директории
+/// Поддерживает: .md, .rs файлы
+fn collect_files(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
     let mut files = Vec::new();
 
     for entry in fs::read_dir(dir)? {
@@ -107,9 +118,13 @@ fn collect_markdown_files(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
 
         if path.is_dir() {
             // Рекурсивный вызов для подпапок
-            files.extend(collect_markdown_files(&path)?);
-        } else if path.extension().is_some_and(|ext| ext == "md") {
-            files.push(path);
+            files.extend(collect_files(&path)?);
+        } else if let Some(ext) = path.extension() {
+            // Собираем .md и .rs файлы
+            let ext_str = ext.to_string_lossy();
+            if ext_str == "md" || ext_str == "rs" {
+                files.push(path);
+            }
         }
     }
 
@@ -121,8 +136,15 @@ fn process_file(path: &Path, bundle: &mut String) -> std::io::Result<()> {
     let content = fs::read_to_string(path)?;
     let path_str = path.to_string_lossy();
 
+    // Определяем тип блока кода по расширению
+    let (lang, content) = if path.extension().is_some_and(|ext| ext == "rs") {
+        ("rust", content)
+    } else {
+        ("markdown", content)
+    };
+
     bundle.push_str(&format!("## 📜 Файл: `{}`\n\n", path_str));
-    bundle.push_str("```markdown\n");
+    bundle.push_str(&format!("```{}\n", lang));
     bundle.push_str(&content);
     // Гарантируем завершение блока кода, даже если файл не заканчивается переносом
     if !content.ends_with('\n') {

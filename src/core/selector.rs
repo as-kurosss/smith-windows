@@ -171,6 +171,10 @@ pub enum SelectorError {
     MaxDepthExceeded,
     #[error("invalid selector: {0}")]
     InvalidSelector(String),
+    #[error("element is not enabled")]
+    ElementNotEnabled,
+    #[error("element is offscreen")]
+    ElementOffscreen,
 }
 
 impl From<uiautomation::Error> for SelectorError {

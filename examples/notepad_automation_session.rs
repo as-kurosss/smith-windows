@@ -20,6 +20,7 @@ use tracing_subscriber::EnvFilter;
 use smith_windows::core::automation_session::{
     attach_by_process_id, launch_process, SessionConfig, SessionLaunchConfig,
 };
+use smith_windows::core::click::{ClickConfig, ClickType};
 use smith_windows::runtime::backends::windows::click::ClickBackendWindows;
 
 #[tokio::main]
@@ -128,9 +129,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Step 5: Use ClickTool to click on "Файл"
     println!("\nStep 5: Clicking 'Файл' menu item with ClickTool...");
 
+    // Create ClickConfig with LeftSingle click type
+    let click_cancellation = tokio_util::sync::CancellationToken::new();
+    let click_config = ClickConfig {
+        click_type: ClickType::LeftSingle,
+        timeout: Duration::from_secs(5),
+        cancellation: click_cancellation,
+    };
+
     let click_backend = ClickBackendWindows::new();
 
-    match click_backend.click(&file_menu).await {
+    match click_backend.click(&file_menu, ClickType::LeftSingle).await {
         Ok(()) => {
             println!("  ✓ Click successful! 'Файл' menu should be open now");
         }

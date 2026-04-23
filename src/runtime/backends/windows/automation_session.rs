@@ -202,7 +202,7 @@ impl SessionBackendWindows {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 impl SessionBackend for SessionBackendWindows {
     async fn launch_process(&self, _config: &SessionLaunchConfig) -> Result<u32, AutomationError> {
         unimplemented!("launch_process is handled directly in core module")
@@ -230,6 +230,7 @@ impl SessionBackend for SessionBackendWindows {
         let timeout = config.timeout;
         let title_clone = title.clone();
 
+        // Direct call to backend - UIElement is !Send, so we cannot use spawn_blocking
         let result = tokio::time::timeout(timeout, async move {
             let backend = SessionBackendWindows::new();
             backend.find_window_by_title(&title_clone, mode, only_visible)
@@ -270,6 +271,7 @@ impl SessionBackend for SessionBackendWindows {
         // Use timeout for the operation
         let timeout = config.timeout;
 
+        // Direct call to backend - UIElement is !Send, so we cannot use spawn_blocking
         let result = tokio::time::timeout(timeout, async move {
             let backend = SessionBackendWindows::new();
             backend.find_window_by_process_id(process_id)

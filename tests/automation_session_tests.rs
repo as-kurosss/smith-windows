@@ -1,12 +1,14 @@
 //! Integration tests for automation session module
 
+use serial_test::serial;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
+use uiautomation::UIAutomation;
 
 use smith_windows::core::automation_session::{
     attach_by_process_id, attach_by_title, launch_process, validate_command, validate_regex,
     validate_session_config, validate_title_filter, AutomationError, MatchMode, MockSessionBackend,
-    MockSessionState, RuntimeSession, SessionConfig, SessionLaunchConfig, SessionState,
+    MockSessionState, RuntimeSession, SessionBackend, SessionConfig, SessionLaunchConfig,
 };
 
 /// Helper function to create a valid session config
@@ -42,7 +44,7 @@ async fn test_integration_launch_process_success() {
 
     // Clean up: terminate the process
     let _ = std::process::Command::new("taskkill")
-        .args(&["/PID", &process_id.to_string(), "/F"])
+        .args(["/PID", &process_id.to_string(), "/F"])
         .output();
 }
 
@@ -62,7 +64,7 @@ async fn test_integration_launch_process_with_args() {
         Ok(process_id) => {
             assert!(process_id > 0);
             let _ = std::process::Command::new("taskkill")
-                .args(&["/PID", &process_id.to_string(), "/F"])
+                .args(["/PID", &process_id.to_string(), "/F"])
                 .output();
         }
         Err(AutomationError::ProcessLaunchFailed(_)) => {
@@ -115,7 +117,7 @@ async fn test_integration_launch_process_working_dir() {
         Ok(process_id) => {
             assert!(process_id > 0);
             let _ = std::process::Command::new("taskkill")
-                .args(&["/PID", &process_id.to_string(), "/F"])
+                .args(["/PID", &process_id.to_string(), "/F"])
                 .output();
         }
         Err(AutomationError::InvalidConfig(_)) => {
@@ -281,12 +283,14 @@ async fn test_integration_mock_idempotency() {
         Err(AutomationError::ProcessLaunchFailed(_))
     ));
 
-    assert_eq!(backend.get_state().launch_call_count, 3);
+    assert_eq!(backend.get_state().unwrap().launch_call_count, 3);
 }
 
+#[serial]
 #[tokio::test]
 async fn test_integration_runtime_session_state() {
-    let element = uiautomation::UIElement::default();
+    let automation = UIAutomation::new().unwrap();
+    let element = automation.get_root_element().unwrap();
     let session = RuntimeSession::new(12345, element);
 
     assert!(session.is_running());
@@ -304,9 +308,11 @@ async fn test_integration_runtime_session_state() {
     ));
 }
 
+#[serial]
 #[tokio::test]
 async fn test_integration_runtime_session_check_running() {
-    let element = uiautomation::UIElement::default();
+    let automation = UIAutomation::new().unwrap();
+    let element = automation.get_root_element().unwrap();
     let session = RuntimeSession::new(12345, element);
 
     assert!(session.check_running().is_ok());
@@ -318,9 +324,11 @@ async fn test_integration_runtime_session_check_running() {
     ));
 }
 
+#[serial]
 #[tokio::test]
 async fn test_integration_runtime_session_click() {
-    let element = uiautomation::UIElement::default();
+    let automation = UIAutomation::new().unwrap();
+    let element = automation.get_root_element().unwrap();
     let session = RuntimeSession::new(12345, element);
 
     // This should return an error since the element is default (invalid)
@@ -341,9 +349,11 @@ async fn test_integration_runtime_session_click() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_integration_runtime_session_type_text() {
-    let element = uiautomation::UIElement::default();
+    let automation = UIAutomation::new().unwrap();
+    let element = automation.get_root_element().unwrap();
     let session = RuntimeSession::new(12345, element);
 
     // This should return an error since the element is default (invalid)
@@ -358,10 +368,12 @@ async fn test_integration_runtime_session_type_text() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_integration_runtime_session_close() {
     // Create a session with a mock process
-    let element = uiautomation::UIElement::default();
+    let automation = UIAutomation::new().unwrap();
+    let element = automation.get_root_element().unwrap();
     let session = RuntimeSession::new(12345, element);
 
     // Close the session
@@ -381,9 +393,11 @@ async fn test_integration_runtime_session_close() {
     }
 }
 
+#[serial]
 #[tokio::test]
 async fn test_integration_runtime_session_after_close() {
-    let element = uiautomation::UIElement::default();
+    let automation = UIAutomation::new().unwrap();
+    let element = automation.get_root_element().unwrap();
     let session = RuntimeSession::new(12345, element);
 
     // Close the session
@@ -501,14 +515,14 @@ async fn test_integration_mock_backend_consistent_error() {
         working_dir: None,
     };
 
-    let initial_count = backend.get_state().launch_call_count;
+    let initial_count = backend.get_state().unwrap().launch_call_count;
 
     // Multiple calls with error
     let _ = backend.launch_process(&config).await;
     let _ = backend.launch_process(&config).await;
     let _ = backend.launch_process(&config).await;
 
-    let final_count = backend.get_state().launch_call_count;
+    let final_count = backend.get_state().unwrap().launch_call_count;
 
     // Call count should increase, but error should remain consistent
     assert_eq!(final_count, initial_count + 3);
